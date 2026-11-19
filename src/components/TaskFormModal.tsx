@@ -8,20 +8,18 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { colors, radius, spacing, typography } from "../theme/tokens";
 import { DateString, Task } from "../types";
 import {
-  addDays,
   clampDate,
-  formatDisplayDate,
+  formatDateWithWeekday,
   getWeekNumberForDate,
-  isDateWithinRange,
 } from "../utils/date";
 import { DatePickerModal } from "./DatePickerModal";
 import { PrimaryButton } from "./PrimaryButton";
-import { TextField } from "./TextField";
 
 interface TaskFormModalProps {
   visible: boolean;
@@ -47,55 +45,51 @@ export function TaskFormModal({
   onClose,
 }: TaskFormModalProps) {
   const defaultDate = clampDate(todayStr, challengeStartDate, challengeEndDate);
-  const tomorrowStr = addDays(todayStr, 1);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [scheduledDate, setScheduledDate] = useState<DateString>(defaultDate);
-  const [titleError, setTitleError] = useState<string | null>(null);
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   useEffect(() => {
-    if (visible) {
-      if (editingTask) {
-        setTitle(editingTask.title);
-        setDescription(editingTask.description ?? "");
-        setScheduledDate(editingTask.scheduledDate);
-      } else {
-        setTitle("");
-        setDescription("");
-        setScheduledDate(
-          clampDate(todayStr, challengeStartDate, challengeEndDate),
-        );
-      }
-      setTitleError(null);
-      setSaving(false);
+    if (!visible) {
+      return;
     }
+    if (editingTask) {
+      setTitle(editingTask.title);
+      setDescription(editingTask.description ?? "");
+      setScheduledDate(editingTask.scheduledDate);
+    } else {
+      setTitle("");
+      setDescription("");
+      setScheduledDate(
+        clampDate(todayStr, challengeStartDate, challengeEndDate),
+      );
+    }
+    setErrorMessage(null);
+    setSaving(false);
   }, [visible, editingTask, todayStr, challengeStartDate, challengeEndDate]);
 
-  const weekNum = getWeekNumberForDate(challengeStartDate, scheduledDate);
-  const canPickToday = isDateWithinRange(
-    todayStr,
-    challengeStartDate,
-    challengeEndDate,
-  );
-  const canPickTomorrow = isDateWithinRange(
-    tomorrowStr,
-    challengeStartDate,
-    challengeEndDate,
-  );
+  const weekNumber = getWeekNumberForDate(challengeStartDate, scheduledDate);
+  const canSave = title.trim().length > 0 && !saving;
 
   async function handleSubmit() {
-    const trimmed = title.trim();
-    if (!trimmed) {
-      setTitleError("Task title is required.");
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setErrorMessage("Enter a task title.");
       return;
     }
     setSaving(true);
+    setErrorMessage(null);
     try {
-      await onSave(trimmed, description, scheduledDate);
+      await onSave(trimmedTitle, description.trim(), scheduledDate);
       onClose();
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "Could not save task.",
+      );
     } finally {
       setSaving(false);
     }
@@ -106,153 +100,139 @@ export function TaskFormModal({
       visible={visible}
       transparent
       animationType="slide"
+      statusBarTranslucent
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView
         style={styles.backdrop}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <Pressable style={styles.dismissArea} onPress={onClose} />
+
         <View style={styles.sheet}>
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>
+            <Text style={styles.heading}>
               {editingTask ? "Edit Task" : "New Task"}
             </Text>
-            <Pressable onPress={onClose} hitSlop={10}>
-              <Ionicons name="close" size={22} color={colors.textSecondary} />
-            </Pressable>
+
+            <View style={styles.headerActions}>
+              <Pressable
+                onPress={handleSubmit}
+                disabled={!canSave}
+                style={[
+                  styles.headerSavePill,
+                  !canSave && styles.headerSavePillDisabled,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.headerSaveText,
+                    !canSave && styles.headerSaveTextDisabled,
+                  ]}
+                >
+                  {saving ? "Saving..." : "Save"}
+                </Text>
+              </Pressable>
+
+              <Pressable onPress={onClose} hitSlop={10} style={styles.closeBtn}>
+                <Ionicons name="close" size={22} color={colors.textSecondary} />
+              </Pressable>
+            </View>
           </View>
 
           <ScrollView
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.formBody}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
           >
-            <TextField
-              label="Task Title"
-              placeholder="What needs to get done?"
-              value={title}
-              onChangeText={(value) => {
-                setTitle(value);
-                if (titleError) {
-                  setTitleError(null);
-                }
-              }}
-              errorText={titleError}
-              maxLength={120}
-              autoFocus={!editingTask}
-            />
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Task Title</Text>
+              <TextInput
+                value={title}
+                onChangeText={(text) => {
+                  setTitle(text);
+                  if (errorMessage) {
+                    setErrorMessage(null);
+                  }
+                }}
+                placeholder="What needs to get done?"
+                placeholderTextColor={colors.textMuted}
+                returnKeyType="next"
+                autoFocus={!editingTask}
+                style={styles.input}
+              />
+            </View>
 
-            <TextField
-              label="Notes (Optional)"
-              placeholder="Add details or context..."
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={3}
-              maxLength={300}
-              style={styles.notesInput}
-            />
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Notes (Optional)</Text>
+              <TextInput
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Add details or context..."
+                placeholderTextColor={colors.textMuted}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                style={[styles.input, styles.notesInput]}
+              />
+            </View>
 
-            <View style={styles.dateGroup}>
+            <View style={styles.fieldGroup}>
               <View style={styles.dateLabelRow}>
-                <Text style={styles.dateLabel}>Scheduled Date</Text>
-                {weekNum !== null ? (
-                  <Text style={styles.weekBadge}>Week {weekNum}</Text>
+                <Text style={styles.label}>Scheduled Date</Text>
+                {weekNumber !== null ? (
+                  <Text style={styles.weekIndicator}>Week {weekNumber}</Text>
                 ) : null}
               </View>
 
               <Pressable
-                style={styles.dateField}
-                onPress={() => setDatePickerOpen(true)}
+                onPress={() => setDatePickerVisible(true)}
+                style={styles.dateSelector}
               >
-                <View style={styles.dateFieldLeft}>
+                <View style={styles.dateSelectorLeft}>
                   <Ionicons
                     name="calendar-outline"
                     size={18}
                     color={colors.primary}
                   />
-                  <Text style={styles.dateValue}>
-                    {formatDisplayDate(scheduledDate)}
+                  <Text style={styles.dateSelectorText}>
+                    {formatDateWithWeekday(scheduledDate)}
                   </Text>
                 </View>
-                <Text style={styles.changeText}>Select</Text>
+                <Text style={styles.selectText}>Select</Text>
               </Pressable>
-
-              {canPickToday || canPickTomorrow ? (
-                <View style={styles.quickChips}>
-                  {canPickToday ? (
-                    <Pressable
-                      style={[
-                        styles.chip,
-                        scheduledDate === todayStr && styles.chipActive,
-                      ]}
-                      onPress={() => setScheduledDate(todayStr)}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          scheduledDate === todayStr && styles.chipTextActive,
-                        ]}
-                      >
-                        Today
-                      </Text>
-                    </Pressable>
-                  ) : null}
-                  {canPickTomorrow ? (
-                    <Pressable
-                      style={[
-                        styles.chip,
-                        scheduledDate === tomorrowStr && styles.chipActive,
-                      ]}
-                      onPress={() => setScheduledDate(tomorrowStr)}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          scheduledDate === tomorrowStr &&
-                            styles.chipTextActive,
-                        ]}
-                      >
-                        Tomorrow
-                      </Text>
-                    </Pressable>
-                  ) : null}
-                </View>
-              ) : null}
             </View>
 
-            <View style={styles.actions}>
-              <PrimaryButton
-                label="Cancel"
-                variant="secondary"
-                onPress={onClose}
-                style={styles.actionBtn}
-              />
-              <PrimaryButton
-                label={
-                  saving
-                    ? "Saving..."
-                    : editingTask
-                      ? "Save Changes"
-                      : "Add Task"
-                }
-                onPress={handleSubmit}
-                disabled={saving}
-                style={styles.actionBtn}
-              />
-            </View>
+            {errorMessage ? (
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            ) : null}
+
+            <PrimaryButton
+              label={
+                saving
+                  ? "Saving..."
+                  : editingTask
+                    ? "Save Changes"
+                    : "Create Task"
+              }
+              onPress={handleSubmit}
+              disabled={!canSave}
+            />
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
 
       <DatePickerModal
-        visible={datePickerOpen}
-        title="Schedule Task Date"
+        visible={datePickerVisible}
+        title="Scheduled Date"
         selectedDate={scheduledDate}
         minDate={challengeStartDate}
         maxDate={challengeEndDate}
-        onSelect={setScheduledDate}
-        onClose={() => setDatePickerOpen(false)}
+        onSelect={(date) => {
+          setScheduledDate(date);
+          setDatePickerVisible(false);
+        }}
+        onClose={() => setDatePickerVisible(false)}
       />
     </Modal>
   );
@@ -261,7 +241,7 @@ export function TaskFormModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: colors.overlay,
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
     justifyContent: "flex-end",
   },
   dismissArea: {
@@ -271,99 +251,109 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
-    borderTopWidth: 1,
+    borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.lg,
     maxHeight: "88%",
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: spacing.md,
   },
-  headerTitle: {
+  heading: {
     ...typography.heading,
     color: colors.textPrimary,
   },
-  formBody: {
-    gap: spacing.md,
-    paddingBottom: spacing.lg,
-  },
-  notesInput: {
-    minHeight: 76,
-    textAlignVertical: "top",
-  },
-  dateGroup: {
-    gap: spacing.xs,
-  },
-  dateLabelRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  dateLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  weekBadge: {
-    ...typography.micro,
-    color: colors.primary,
-  },
-  dateField: {
-    minHeight: 48,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  dateFieldLeft: {
+  headerActions: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
   },
-  dateValue: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-  },
-  changeText: {
-    ...typography.caption,
-    color: colors.primary,
-  },
-  quickChips: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  chip: {
+  headerSavePill: {
+    backgroundColor: colors.primary,
     paddingHorizontal: spacing.md,
     paddingVertical: 6,
     borderRadius: radius.full,
+  },
+  headerSavePillDisabled: {
     backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  chipActive: {
-    backgroundColor: colors.primaryMuted,
-    borderColor: colors.primary,
+  headerSaveText: {
+    ...typography.caption,
+    fontWeight: "700",
+    color: colors.background,
   },
-  chipText: {
-    ...typography.micro,
+  headerSaveTextDisabled: {
+    color: colors.textMuted,
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  scrollContent: {
+    gap: spacing.md,
+    paddingBottom: spacing.xl,
+  },
+  fieldGroup: {
+    gap: 6,
+  },
+  label: {
+    ...typography.caption,
     color: colors.textSecondary,
   },
-  chipTextActive: {
+  input: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    ...typography.body,
+    color: colors.textPrimary,
+  },
+  notesInput: {
+    minHeight: 76,
+  },
+  dateLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  weekIndicator: {
+    ...typography.micro,
     color: colors.primary,
   },
-  actions: {
+  dateSelector: {
     flexDirection: "row",
-    gap: spacing.md,
-    marginTop: spacing.sm,
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 13,
   },
-  actionBtn: {
-    flex: 1,
+  dateSelectorLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  dateSelectorText: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+  },
+  selectText: {
+    ...typography.caption,
+    fontWeight: "600",
+    color: colors.primary,
+  },
+  errorText: {
+    ...typography.caption,
+    color: colors.danger,
   },
 });

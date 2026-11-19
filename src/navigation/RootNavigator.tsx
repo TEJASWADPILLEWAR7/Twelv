@@ -1,8 +1,9 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { DarkTheme, NavigationContainer } from "@react-navigation/native";
 import React from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { FloatingTabBar } from "../components/FloatingTabBar";
+import { StartupSplash } from "../components/StartupSplash";
 import { useAppData } from "../context/AppDataContext";
 import { ChallengeSetupScreen } from "../screens/ChallengeSetupScreen";
 import { HabitsScreen } from "../screens/HabitsScreen";
@@ -35,46 +36,44 @@ const navigationTheme = {
 export function RootNavigator() {
   const { isReady, error, challenge } = useAppData();
 
-  if (!isReady) {
-    return (
-      <View style={styles.centerState}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.centerState}>
-        <Text style={styles.errorTitle}>Storage Error</Text>
-        <Text style={styles.errorMessage}>{error}</Text>
-      </View>
-    );
-  }
-
-  if (!challenge) {
-    return <ChallengeSetupScreen />;
-  }
-
   return (
-    <NavigationContainer theme={navigationTheme}>
-      <Tab.Navigator
-        tabBar={(props) => <FloatingTabBar {...props} />}
-        screenOptions={{
-          headerShown: false,
-          lazy: true,
-        }}
-      >
-        <Tab.Screen name="Tasks" component={TasksScreen} />
-        <Tab.Screen name="Habits" component={HabitsScreen} />
-        <Tab.Screen name="Progress" component={ProgressScreen} />
-        <Tab.Screen name="More" component={MoreScreen} />
-      </Tab.Navigator>
-    </NavigationContainer>
+    <View style={styles.root}>
+      {isReady && error ? (
+        <View style={styles.centerState}>
+          <Text style={styles.errorTitle}>Storage Error</Text>
+          <Text style={styles.errorMessage}>{error}</Text>
+        </View>
+      ) : null}
+
+      {isReady && !error && !challenge ? <ChallengeSetupScreen /> : null}
+
+      {isReady && !error && challenge ? (
+        <NavigationContainer theme={navigationTheme}>
+          <Tab.Navigator
+            tabBar={(props) => <FloatingTabBar {...props} />}
+            screenOptions={{
+              headerShown: false,
+              lazy: true,
+            }}
+          >
+            <Tab.Screen name="Tasks" component={TasksScreen} />
+            <Tab.Screen name="Habits" component={HabitsScreen} />
+            <Tab.Screen name="Progress" component={ProgressScreen} />
+            <Tab.Screen name="More" component={MoreScreen} />
+          </Tab.Navigator>
+        </NavigationContainer>
+      ) : null}
+
+      <StartupSplash isReady={isReady} hasError={Boolean(error)} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   centerState: {
     flex: 1,
     backgroundColor: colors.background,

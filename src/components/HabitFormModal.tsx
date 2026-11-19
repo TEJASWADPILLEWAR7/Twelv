@@ -8,27 +8,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { colors, radius, spacing, typography } from "../theme/tokens";
 import { Habit, Weekday } from "../types";
 import { PrimaryButton } from "./PrimaryButton";
-import { TextField } from "./TextField";
-
-const ALL_DAYS: Weekday[] = [0, 1, 2, 3, 4, 5, 6];
-const MON_FRI: Weekday[] = [1, 2, 3, 4, 5];
-const MON_SAT: Weekday[] = [1, 2, 3, 4, 5, 6];
-const WEEKENDS: Weekday[] = [0, 6];
-
-const DAY_BUTTONS: Array<{ day: Weekday; shortLabel: string }> = [
-  { day: 0, shortLabel: "Sun" },
-  { day: 1, shortLabel: "Mon" },
-  { day: 2, shortLabel: "Tue" },
-  { day: 3, shortLabel: "Wed" },
-  { day: 4, shortLabel: "Thu" },
-  { day: 5, shortLabel: "Fri" },
-  { day: 6, shortLabel: "Sat" },
-];
 
 interface HabitFormModalProps {
   visible: boolean;
@@ -38,14 +23,15 @@ interface HabitFormModalProps {
   onClose: () => void;
 }
 
-function sameDays(a: Weekday[], b: Weekday[]): boolean {
-  if (a.length !== b.length) {
-    return false;
-  }
-  const sortedA = [...a].sort((x, y) => x - y);
-  const sortedB = [...b].sort((x, y) => x - y);
-  return sortedA.every((val, idx) => val === sortedB[idx]);
-}
+const DAY_OPTIONS: Array<{ day: Weekday; short: string }> = [
+  { day: 0, short: "Sun" },
+  { day: 1, short: "Mon" },
+  { day: 2, short: "Tue" },
+  { day: 3, short: "Wed" },
+  { day: 4, short: "Thu" },
+  { day: 5, short: "Fri" },
+  { day: 6, short: "Sat" },
+];
 
 export function HabitFormModal({
   visible,
@@ -55,50 +41,54 @@ export function HabitFormModal({
   onClose,
 }: HabitFormModalProps) {
   const [title, setTitle] = useState("");
-  const [selectedDays, setSelectedDays] = useState<Weekday[]>(ALL_DAYS);
-  const [titleError, setTitleError] = useState<string | null>(null);
-  const [daysError, setDaysError] = useState<string | null>(null);
+  const [selectedDays, setSelectedDays] = useState<Weekday[]>(initialDays);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (visible) {
-      if (editingHabit) {
-        setTitle(editingHabit.title);
-        setSelectedDays(initialDays.length > 0 ? initialDays : ALL_DAYS);
-      } else {
-        setTitle("");
-        setSelectedDays(ALL_DAYS);
-      }
-      setTitleError(null);
-      setDaysError(null);
-      setSaving(false);
+    if (!visible) {
+      return;
     }
+    setTitle(editingHabit ? editingHabit.title : "");
+    setSelectedDays(
+      initialDays.length > 0 ? initialDays : [0, 1, 2, 3, 4, 5, 6],
+    );
+    setErrorMessage(null);
+    setSaving(false);
   }, [visible, editingHabit, initialDays]);
 
   function toggleDay(day: Weekday) {
-    setDaysError(null);
-    setSelectedDays((prev) => {
-      if (prev.includes(day)) {
-        return prev.filter((item) => item !== day);
-      }
-      return [...prev, day].sort((a, b) => a - b);
-    });
+    setSelectedDays((prev) =>
+      prev.includes(day)
+        ? prev.filter((d) => d !== day)
+        : [...prev, day].sort((a, b) => a - b),
+    );
+    if (errorMessage) {
+      setErrorMessage(null);
+    }
   }
+
+  const canSave = title.trim().length > 0 && selectedDays.length > 0 && !saving;
 
   async function handleSubmit() {
     const trimmed = title.trim();
     if (!trimmed) {
-      setTitleError("Habit name is required.");
+      setErrorMessage("Enter a habit name.");
       return;
     }
     if (selectedDays.length === 0) {
-      setDaysError("Select at least one day of the week.");
+      setErrorMessage("Select at least one day of the week.");
       return;
     }
     setSaving(true);
+    setErrorMessage(null);
     try {
       await onSave(trimmed, selectedDays);
       onClose();
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "Could not save habit.",
+      );
     } finally {
       setSaving(false);
     }
@@ -109,188 +99,125 @@ export function HabitFormModal({
       visible={visible}
       transparent
       animationType="slide"
+      statusBarTranslucent
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView
         style={styles.backdrop}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <Pressable style={styles.dismissArea} onPress={onClose} />
+
         <View style={styles.sheet}>
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>
-              {editingHabit ? "Edit Habit" : "New Recurring Habit"}
+            <Text style={styles.heading}>
+              {editingHabit ? "Edit Habit" : "New Habit"}
             </Text>
-            <Pressable onPress={onClose} hitSlop={10}>
-              <Ionicons name="close" size={22} color={colors.textSecondary} />
-            </Pressable>
+
+            <View style={styles.headerActions}>
+              <Pressable
+                onPress={handleSubmit}
+                disabled={!canSave}
+                style={[
+                  styles.headerSavePill,
+                  !canSave && styles.headerSavePillDisabled,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.headerSaveText,
+                    !canSave && styles.headerSaveTextDisabled,
+                  ]}
+                >
+                  {saving ? "Saving..." : "Save"}
+                </Text>
+              </Pressable>
+
+              <Pressable onPress={onClose} hitSlop={10} style={styles.closeBtn}>
+                <Ionicons name="close" size={22} color={colors.textSecondary} />
+              </Pressable>
+            </View>
           </View>
 
           <ScrollView
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.formBody}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
           >
-            <TextField
-              label="Habit Name"
-              placeholder="e.g. Study DSA for 90 mins"
-              value={title}
-              onChangeText={(value) => {
-                setTitle(value);
-                if (titleError) {
-                  setTitleError(null);
-                }
-              }}
-              errorText={titleError}
-              maxLength={80}
-              autoFocus={!editingHabit}
-            />
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Habit Name</Text>
+              <TextInput
+                value={title}
+                onChangeText={(text) => {
+                  setTitle(text);
+                  if (errorMessage) {
+                    setErrorMessage(null);
+                  }
+                }}
+                placeholder="e.g., 45 min deep work session"
+                placeholderTextColor={colors.textMuted}
+                autoFocus={!editingHabit}
+                style={styles.input}
+              />
+            </View>
 
-            <View style={styles.scheduleSection}>
-              <Text style={styles.sectionLabel}>Schedule</Text>
-
-              <View style={styles.presetRow}>
-                <Pressable
-                  style={[
-                    styles.presetChip,
-                    sameDays(selectedDays, ALL_DAYS) && styles.presetChipActive,
-                  ]}
-                  onPress={() => {
-                    setSelectedDays(ALL_DAYS);
-                    setDaysError(null);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.presetText,
-                      sameDays(selectedDays, ALL_DAYS) &&
-                        styles.presetTextActive,
-                    ]}
+            <View style={styles.fieldGroup}>
+              <View style={styles.daysHeader}>
+                <Text style={styles.label}>Repeat Days</Text>
+                <View style={styles.presetRow}>
+                  <Pressable
+                    onPress={() => setSelectedDays([0, 1, 2, 3, 4, 5, 6])}
+                    style={styles.presetBtn}
                   >
-                    Every day
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  style={[
-                    styles.presetChip,
-                    sameDays(selectedDays, MON_SAT) && styles.presetChipActive,
-                  ]}
-                  onPress={() => {
-                    setSelectedDays(MON_SAT);
-                    setDaysError(null);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.presetText,
-                      sameDays(selectedDays, MON_SAT) &&
-                        styles.presetTextActive,
-                    ]}
+                    <Text style={styles.presetText}>Every day</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setSelectedDays([1, 2, 3, 4, 5])}
+                    style={styles.presetBtn}
                   >
-                    Mon - Sat
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  style={[
-                    styles.presetChip,
-                    sameDays(selectedDays, MON_FRI) && styles.presetChipActive,
-                  ]}
-                  onPress={() => {
-                    setSelectedDays(MON_FRI);
-                    setDaysError(null);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.presetText,
-                      sameDays(selectedDays, MON_FRI) &&
-                        styles.presetTextActive,
-                    ]}
-                  >
-                    Mon - Fri
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  style={[
-                    styles.presetChip,
-                    sameDays(selectedDays, WEEKENDS) && styles.presetChipActive,
-                  ]}
-                  onPress={() => {
-                    setSelectedDays(WEEKENDS);
-                    setDaysError(null);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.presetText,
-                      sameDays(selectedDays, WEEKENDS) &&
-                        styles.presetTextActive,
-                    ]}
-                  >
-                    Weekends
-                  </Text>
-                </Pressable>
+                    <Text style={styles.presetText}>Weekdays</Text>
+                  </Pressable>
+                </View>
               </View>
 
-              <View style={styles.daysGrid}>
-                {DAY_BUTTONS.map(({ day, shortLabel }) => {
-                  const active = selectedDays.includes(day);
+              <View style={styles.daysRow}>
+                {DAY_OPTIONS.map((item) => {
+                  const active = selectedDays.includes(item.day);
                   return (
                     <Pressable
-                      key={day}
-                      onPress={() => toggleDay(day)}
-                      style={[
-                        styles.dayButton,
-                        active && styles.dayButtonActive,
-                      ]}
+                      key={item.day}
+                      onPress={() => toggleDay(item.day)}
+                      style={[styles.dayPill, active && styles.dayPillActive]}
                     >
                       <Text
                         style={[
-                          styles.dayButtonText,
-                          active && styles.dayButtonTextActive,
+                          styles.dayPillText,
+                          active && styles.dayPillTextActive,
                         ]}
                       >
-                        {shortLabel}
+                        {item.short}
                       </Text>
                     </Pressable>
                   );
                 })}
               </View>
-
-              {daysError ? (
-                <Text style={styles.errorText}>{daysError}</Text>
-              ) : null}
-
-              {editingHabit ? (
-                <Text style={styles.scheduleNote}>
-                  Schedule changes apply from today forward. Past week scores
-                  remain preserved.
-                </Text>
-              ) : null}
             </View>
 
-            <View style={styles.actions}>
-              <PrimaryButton
-                label="Cancel"
-                variant="secondary"
-                onPress={onClose}
-                style={styles.actionBtn}
-              />
-              <PrimaryButton
-                label={
-                  saving
-                    ? "Saving..."
-                    : editingHabit
-                      ? "Save Changes"
-                      : "Create Habit"
-                }
-                onPress={handleSubmit}
-                disabled={saving}
-                style={styles.actionBtn}
-              />
-            </View>
+            {errorMessage ? (
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            ) : null}
+
+            <PrimaryButton
+              label={
+                saving
+                  ? "Saving..."
+                  : editingHabit
+                    ? "Save Changes"
+                    : "Create Habit"
+              }
+              onPress={handleSubmit}
+              disabled={!canSave}
+            />
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -301,7 +228,7 @@ export function HabitFormModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: colors.overlay,
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
     justifyContent: "flex-end",
   },
   dismissArea: {
@@ -311,99 +238,115 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
-    borderTopWidth: 1,
+    borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.lg,
     maxHeight: "88%",
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: spacing.md,
   },
-  headerTitle: {
+  heading: {
     ...typography.heading,
     color: colors.textPrimary,
   },
-  formBody: {
-    gap: spacing.md,
-    paddingBottom: spacing.lg,
-  },
-  scheduleSection: {
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.sm,
   },
-  sectionLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  presetRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.xs,
-  },
-  presetChip: {
+  headerSavePill: {
+    backgroundColor: colors.primary,
     paddingHorizontal: spacing.md,
     paddingVertical: 6,
     borderRadius: radius.full,
+  },
+  headerSavePillDisabled: {
     backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  presetChipActive: {
-    backgroundColor: colors.primaryMuted,
-    borderColor: colors.primary,
+  headerSaveText: {
+    ...typography.caption,
+    fontWeight: "700",
+    color: colors.background,
+  },
+  headerSaveTextDisabled: {
+    color: colors.textMuted,
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  scrollContent: {
+    gap: spacing.md,
+    paddingBottom: spacing.xl,
+  },
+  fieldGroup: {
+    gap: 8,
+  },
+  label: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  input: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    ...typography.body,
+    color: colors.textPrimary,
+  },
+  daysHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  presetRow: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  presetBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceElevated,
   },
   presetText: {
     ...typography.micro,
-    color: colors.textSecondary,
-  },
-  presetTextActive: {
     color: colors.primary,
   },
-  daysGrid: {
+  daysRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     gap: 6,
-    marginTop: spacing.xs,
   },
-  dayButton: {
+  dayPill: {
     flex: 1,
-    height: 44,
+    paddingVertical: 10,
     borderRadius: radius.md,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: "center",
-    justifyContent: "center",
   },
-  dayButtonActive: {
+  dayPillActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  dayButtonText: {
+  dayPillText: {
     ...typography.micro,
     color: colors.textSecondary,
   },
-  dayButtonTextActive: {
+  dayPillTextActive: {
     color: colors.background,
-    fontWeight: "700",
   },
   errorText: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.danger,
-  },
-  scheduleNote: {
-    ...typography.micro,
-    color: colors.textMuted,
-    lineHeight: 16,
-  },
-  actions: {
-    flexDirection: "row",
-    gap: spacing.md,
-    marginTop: spacing.sm,
-  },
-  actionBtn: {
-    flex: 1,
   },
 });
