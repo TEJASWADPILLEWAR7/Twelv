@@ -31,7 +31,7 @@ export function syncAndroidWidgets(params: {
         remainingCount: 0,
         completedTodayCount: 0,
         totalTodayCount: 0,
-        remainingTasks: [],
+        todayTasks: [],
         taskPct: 0,
         taskCompleted: 0,
         taskTotal: 0,
@@ -46,14 +46,33 @@ export function syncAndroidWidgets(params: {
   }
 
   const todayAllTasks = tasks.filter((t) => t.scheduledDate === todayStr);
-  const remainingTodayTasks = todayAllTasks
+  const completedToday = todayAllTasks
+    .filter((t) => t.completed)
+    .sort((a, b) => a.id - b.id);
+  const remainingToday = todayAllTasks
     .filter((t) => !t.completed)
     .sort((a, b) => b.id - a.id);
 
   const todayScore = buildCategoryScore(
-    todayAllTasks.length - remainingTodayTasks.length,
+    completedToday.length,
     todayAllTasks.length,
   );
+
+  // Show completed tasks with strikethrough first, while reserving room for remaining tasks (up to 5 rows)
+  const maxRows = 5;
+  const completedSlice =
+    remainingToday.length >= maxRows
+      ? []
+      : completedToday.slice(0, Math.min(2, maxRows - remainingToday.length));
+  const remainingSlice = remainingToday.slice(
+    0,
+    maxRows - completedSlice.length,
+  );
+
+  const widgetTaskItems = [
+    ...completedSlice.map((t) => ({ title: t.title, completed: true })),
+    ...remainingSlice.map((t) => ({ title: t.title, completed: false })),
+  ];
 
   let currentSummary: WeeklySummary | null = null;
   if (weeklySummaries.length > 0) {
@@ -101,10 +120,10 @@ export function syncAndroidWidgets(params: {
       weekLabel: currentSummary
         ? `Week ${currentSummary.weekNumber} of 12`
         : "12 Week Cycle",
-      remainingCount: remainingTodayTasks.length,
+      remainingCount: remainingToday.length,
       completedTodayCount: todayScore.completed,
       totalTodayCount: todayScore.total,
-      remainingTasks: remainingTodayTasks.slice(0, 6).map((t) => t.title),
+      todayTasks: widgetTaskItems,
       taskPct: taskScore.percentage,
       taskCompleted: taskScore.completed,
       taskTotal: taskScore.total,
