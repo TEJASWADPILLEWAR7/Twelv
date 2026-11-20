@@ -11,7 +11,8 @@ function writeFileEnsured(filePath, content) {
   fs.writeFileSync(filePath, content, "utf8");
 }
 
-const WIDGET_BRIDGE_MODULE_KT = `package com.twelv.tracker.widgets
+function getWidgetBridgeModuleKt(androidPackage) {
+  return `package ${androidPackage}.widgets
 
 import android.content.Context
 import com.facebook.react.bridge.ReactApplicationContext
@@ -41,8 +42,10 @@ class WidgetBridgeModule(reactContext: ReactApplicationContext) :
     }
 }
 `;
+}
 
-const WIDGET_BRIDGE_PACKAGE_KT = `package com.twelv.tracker.widgets
+function getWidgetBridgePackageKt(androidPackage) {
+  return `package ${androidPackage}.widgets
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule
@@ -57,8 +60,10 @@ class WidgetBridgePackage : ReactPackage {
         emptyList()
 }
 `;
+}
 
-const TODAY_TASKS_WIDGET_PROVIDER_KT = `package com.twelv.tracker.widgets
+function getTodayTasksWidgetProviderKt(androidPackage) {
+  return `package ${androidPackage}.widgets
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -69,7 +74,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.view.View
 import android.widget.RemoteViews
-import com.twelv.tracker.R
+import ${androidPackage}.R
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -236,8 +241,10 @@ class TodayTasksWidgetProvider : AppWidgetProvider() {
     }
 }
 `;
+}
 
-const WEEKLY_SCORE_WIDGET_PROVIDER_KT = `package com.twelv.tracker.widgets
+function getWeeklyScoreWidgetProviderKt(androidPackage) {
+  return `package ${androidPackage}.widgets
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -246,7 +253,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.graphics.Color
 import android.widget.RemoteViews
-import com.twelv.tracker.R
+import ${androidPackage}.R
 import org.json.JSONObject
 
 class WeeklyScoreWidgetProvider : AppWidgetProvider() {
@@ -340,6 +347,7 @@ class WeeklyScoreWidgetProvider : AppWidgetProvider() {
     }
 }
 `;
+}
 
 const WIDGET_BG_XML = `<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
@@ -469,7 +477,7 @@ const WIDGET_TODAY_TASKS_LAYOUT_XML = `<?xml version="1.0" encoding="utf-8"?>
                 android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="Today's focus"
+                android:text="Today&apos;s focus"
                 android:textColor="#F8FAFC"
                 android:textSize="19sp"
                 android:textStyle="bold" />
@@ -846,12 +854,16 @@ const WIDGET_WEEKLY_SCORE_INFO_XML = `<?xml version="1.0" encoding="utf-8"?>
 
 const WIDGET_STRINGS_XML = `<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_today_tasks_desc">Shows today's focus progress, completed tasks, and remaining tasks.</string>
+    <string name="widget_today_tasks_label">Twelv · Today\\'s Focus</string>
+    <string name="widget_weekly_score_label">Twelv · Execution Score</string>
+    <string name="widget_today_tasks_desc">Shows today\\'s focus progress, completed tasks, and remaining tasks.</string>
     <string name="widget_weekly_score_desc">Shows your current 12-week Task and Habit execution percentages.</string>
 </resources>
 `;
 
 function withTwelvWidgets(config) {
+  const androidPackage = config.android?.package || "com.twelv.tracker";
+
   config = withAndroidManifest(config, (mod) => {
     const app = mod.modResults.manifest.application?.[0];
     if (!app) {
@@ -873,7 +885,7 @@ function withTwelvWidgets(config) {
         $: {
           "android:name": ".widgets.TodayTasksWidgetProvider",
           "android:exported": "true",
-          "android:label": "Twelv · Today's Focus",
+          "android:label": "@string/widget_today_tasks_label",
         },
         "intent-filter": [
           {
@@ -899,7 +911,7 @@ function withTwelvWidgets(config) {
         $: {
           "android:name": ".widgets.WeeklyScoreWidgetProvider",
           "android:exported": "true",
-          "android:label": "Twelv · Execution Score",
+          "android:label": "@string/widget_weekly_score_label",
         },
         "intent-filter": [
           {
@@ -929,11 +941,11 @@ function withTwelvWidgets(config) {
 
   config = withMainApplication(config, (mod) => {
     let contents = mod.modResults.contents;
-    if (!contents.includes("com.twelv.tracker.widgets.WidgetBridgePackage")) {
+    const importLine = `import ${androidPackage}.widgets.WidgetBridgePackage`;
+    if (!contents.includes(importLine)) {
       contents = contents.replace(
         /^package\s+[^\r\n]+/m,
-        (match) =>
-          `${match}\n\nimport com.twelv.tracker.widgets.WidgetBridgePackage`,
+        (match) => `${match}\n\n${importLine}`,
       );
     }
     if (!contents.includes("add(WidgetBridgePackage())")) {
@@ -958,28 +970,26 @@ function withTwelvWidgets(config) {
       const javaDir = path.join(
         mainDir,
         "java",
-        "com",
-        "twelv",
-        "tracker",
+        ...androidPackage.split("."),
         "widgets",
       );
       const resDir = path.join(mainDir, "res");
 
       writeFileEnsured(
         path.join(javaDir, "WidgetBridgeModule.kt"),
-        WIDGET_BRIDGE_MODULE_KT,
+        getWidgetBridgeModuleKt(androidPackage),
       );
       writeFileEnsured(
         path.join(javaDir, "WidgetBridgePackage.kt"),
-        WIDGET_BRIDGE_PACKAGE_KT,
+        getWidgetBridgePackageKt(androidPackage),
       );
       writeFileEnsured(
         path.join(javaDir, "TodayTasksWidgetProvider.kt"),
-        TODAY_TASKS_WIDGET_PROVIDER_KT,
+        getTodayTasksWidgetProviderKt(androidPackage),
       );
       writeFileEnsured(
         path.join(javaDir, "WeeklyScoreWidgetProvider.kt"),
-        WEEKLY_SCORE_WIDGET_PROVIDER_KT,
+        getWeeklyScoreWidgetProviderKt(androidPackage),
       );
 
       writeFileEnsured(
