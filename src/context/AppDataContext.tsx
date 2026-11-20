@@ -44,6 +44,7 @@ import {
   getTodayDateString,
 } from "../utils/date";
 import { computeWeeklySummaries } from "../utils/scoring";
+import { syncAndroidWidgets } from "../utils/widgetSync";
 
 interface AppDataContextValue {
   isReady: boolean;
@@ -320,6 +321,19 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       todayStr,
     );
   }, [challenge, tasks, habits, schedules, logs, todayStr]);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+    syncAndroidWidgets({
+      challenge,
+      todayStr,
+      activeWeekNumber,
+      tasks,
+      weeklySummaries,
+    });
+  }, [isReady, challenge, todayStr, activeWeekNumber, tasks, weeklySummaries]);
 
   const value = useMemo<AppDataContextValue>(
     () => ({

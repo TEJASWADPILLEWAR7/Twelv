@@ -21,7 +21,7 @@ const FILTER_TABS: Array<{ key: TaskFilter; label: string }> = [
   { key: "today", label: "Today" },
   { key: "pending", label: "Pending" },
   { key: "upcoming", label: "Upcoming" },
-  { key: "completed", label: "Done" },
+  { key: "completed", label: "Completed" },
 ];
 
 export function TasksScreen() {
@@ -64,10 +64,8 @@ export function TasksScreen() {
   const filteredTasks = useMemo(() => {
     if (filter === "today") {
       return tasks
-        .filter((t) => t.scheduledDate === todayStr)
-        .sort(
-          (a, b) => Number(a.completed) - Number(b.completed) || b.id - a.id,
-        );
+        .filter((t) => !t.completed && t.scheduledDate === todayStr)
+        .sort((a, b) => b.id - a.id);
     }
     if (filter === "pending") {
       return tasks
@@ -79,25 +77,29 @@ export function TasksScreen() {
     }
     if (filter === "upcoming") {
       return tasks
-        .filter((t) => t.scheduledDate > todayStr)
+        .filter((t) => !t.completed && t.scheduledDate > todayStr)
         .sort(
           (a, b) =>
-            a.scheduledDate.localeCompare(b.scheduledDate) ||
-            Number(a.completed) - Number(b.completed),
+            a.scheduledDate.localeCompare(b.scheduledDate) || b.id - a.id,
         );
     }
     return tasks
       .filter((t) => t.completed)
       .sort(
-        (a, b) => b.scheduledDate.localeCompare(a.scheduledDate) || b.id - a.id,
+        (a, b) =>
+          (b.completedAt ?? b.scheduledDate).localeCompare(
+            a.completedAt ?? a.scheduledDate,
+          ) || b.id - a.id,
       );
   }, [tasks, filter, todayStr]);
 
   const filterCounts = useMemo(
     () => ({
-      today: tasks.filter((t) => t.scheduledDate === todayStr).length,
+      today: tasks.filter((t) => !t.completed && t.scheduledDate === todayStr)
+        .length,
       pending: tasks.filter((t) => !t.completed).length,
-      upcoming: tasks.filter((t) => t.scheduledDate > todayStr).length,
+      upcoming: tasks.filter((t) => !t.completed && t.scheduledDate > todayStr)
+        .length,
       completed: tasks.filter((t) => t.completed).length,
     }),
     [tasks, todayStr],
@@ -236,6 +238,8 @@ export function TasksScreen() {
             >
               <Text
                 numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
                 style={[styles.filterText, active && styles.filterTextActive]}
               >
                 {tab.label} ({filterCounts[tab.key]})
@@ -269,7 +273,9 @@ export function TasksScreen() {
             icon="checkmark-done-outline"
             title={
               filter === "today"
-                ? "No tasks scheduled for today"
+                ? todayStats.total > 0
+                  ? "All today's tasks completed"
+                  : "No tasks scheduled for today"
                 : filter === "pending"
                   ? "All caught up"
                   : filter === "upcoming"
@@ -278,7 +284,9 @@ export function TasksScreen() {
             }
             description={
               filter === "today"
-                ? "Plan your highest-leverage tasks for today to stay above 85% this week."
+                ? todayStats.total > 0
+                  ? "Completed tasks are shown in the Completed tab."
+                  : "Plan your highest-leverage tasks for today to stay above 85% this week."
                 : "Tap + Task above to schedule work inside your 12-week cycle."
             }
             actionLabel={filter === "today" ? "Add Today Task" : undefined}

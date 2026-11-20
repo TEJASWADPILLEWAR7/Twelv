@@ -21,10 +21,6 @@
                  "web":  {
                              "favicon":  "./assets/favicon.png"
                          },
-                 "plugins":  [
-                                 "expo-sqlite",
-                                 "expo-font"
-                             ],
                  "backgroundColor":  "#0B0D10",
                  "extra":  {
                                "eas":  {
@@ -35,6 +31,11 @@
                                 "image":  "./assets/Twelv.png",
                                 "resizeMode":  "contain",
                                 "backgroundColor":  "#0B0F17"
-                            }
+                            },
+                 "plugins":  [
+                                 "expo-sqlite",
+                                 "expo-font",
+                                 "./plugins/withTwelvWidgets"
+                             ]
              }
 }
