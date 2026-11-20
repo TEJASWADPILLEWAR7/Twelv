@@ -70,7 +70,7 @@ export function TaskFormModal({
     }
     if (editingTask) {
       setTitle(editingTask.title);
-      setDescription(editingTask.description);
+      setDescription(editingTask.description ?? "");
       setScheduledDate(editingTask.scheduledDate);
     } else {
       setTitle("");
