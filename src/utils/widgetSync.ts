@@ -4,10 +4,36 @@ import { buildCategoryScore } from "./scoring";
 
 interface WidgetBridgeInterface {
   updateWidgetData: (payloadJson: string) => void;
+  consumePendingTaskToggles?: () => Promise<string>;
 }
 
 const WidgetBridge: WidgetBridgeInterface | undefined =
   NativeModules.WidgetBridge;
+
+export async function consumePendingWidgetTaskToggles(): Promise<
+  Record<number, boolean>
+> {
+  if (Platform.OS !== "android" || !WidgetBridge?.consumePendingTaskToggles) {
+    return {};
+  }
+  try {
+    const rawJson = await WidgetBridge.consumePendingTaskToggles();
+    if (!rawJson) {
+      return {};
+    }
+    const parsed = JSON.parse(rawJson) as Record<string, unknown>;
+    const result: Record<number, boolean> = {};
+    for (const [key, val] of Object.entries(parsed)) {
+      const id = Number(key);
+      if (Number.isFinite(id) && typeof val === "boolean") {
+        result[id] = val;
+      }
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
 
 export function syncAndroidWidgets(params: {
   challenge: Challenge | null;
@@ -46,32 +72,37 @@ export function syncAndroidWidgets(params: {
   }
 
   const todayAllTasks = tasks.filter((t) => t.scheduledDate === todayStr);
-  const completedToday = todayAllTasks
-    .filter((t) => t.completed)
-    .sort((a, b) => a.id - b.id);
   const remainingToday = todayAllTasks
     .filter((t) => !t.completed)
     .sort((a, b) => b.id - a.id);
+  const completedToday = todayAllTasks
+    .filter((t) => t.completed)
+    .sort((a, b) => a.id - b.id);
 
   const todayScore = buildCategoryScore(
     completedToday.length,
     todayAllTasks.length,
   );
 
-  // Show completed tasks with strikethrough first, while reserving room for remaining tasks (up to 5 rows)
+  // Uncompleted tasks on top, completed tasks moved downside
   const maxRows = 5;
-  const completedSlice =
-    remainingToday.length >= maxRows
-      ? []
-      : completedToday.slice(0, Math.min(2, maxRows - remainingToday.length));
-  const remainingSlice = remainingToday.slice(
+  const remainingSlice = remainingToday.slice(0, maxRows);
+  const completedSlice = completedToday.slice(
     0,
-    maxRows - completedSlice.length,
+    Math.max(0, maxRows - remainingSlice.length),
   );
 
   const widgetTaskItems = [
-    ...completedSlice.map((t) => ({ title: t.title, completed: true })),
-    ...remainingSlice.map((t) => ({ title: t.title, completed: false })),
+    ...remainingSlice.map((t) => ({
+      id: t.id,
+      title: t.title,
+      completed: false,
+    })),
+    ...completedSlice.map((t) => ({
+      id: t.id,
+      title: t.title,
+      completed: true,
+    })),
   ];
 
   let currentSummary: WeeklySummary | null = null;

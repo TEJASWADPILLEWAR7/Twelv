@@ -15,6 +15,7 @@ function getWidgetBridgeModuleKt(androidPackage) {
   return `package ${androidPackage}.widgets
 
 import android.content.Context
+import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
@@ -36,9 +37,18 @@ class WidgetBridgeModule(reactContext: ReactApplicationContext) :
         WeeklyScoreWidgetProvider.updateAllWidgets(context)
     }
 
+    @ReactMethod
+    fun consumePendingTaskToggles(promise: Promise) {
+        val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val pending = prefs.getString(KEY_PENDING_TOGGLES, "{}") ?: "{}"
+        prefs.edit().remove(KEY_PENDING_TOGGLES).apply()
+        promise.resolve(pending)
+    }
+
     companion object {
         const val PREFS_NAME = "twelv_widget_prefs"
         const val KEY_PAYLOAD = "widget_payload"
+        const val KEY_PENDING_TOGGLES = "pending_task_toggles"
     }
 }
 `;
@@ -70,11 +80,13 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Paint
 import android.view.View
 import android.widget.RemoteViews
 import ${androidPackage}.R
+import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -83,9 +95,114 @@ import java.util.Locale
 class TodayTasksWidgetProvider : AppWidgetProvider() {
 
     private data class WidgetTaskItem(
+        val id: Int,
         val title: String,
         val completed: Boolean
     )
+
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        val toggleAction = context.packageName + ".widgets.ACTION_TOGGLE_TASK"
+        if (intent.action == toggleAction) {
+            val taskId = intent.getIntExtra(EXTRA_TASK_ID, -1)
+            val nextCompleted = intent.getBooleanExtra(EXTRA_NEXT_COMPLETED, false)
+            if (taskId != -1) {
+                handleToggleTaskFromWidget(context, taskId, nextCompleted)
+            }
+        }
+    }
+
+    private fun handleToggleTaskFromWidget(
+        context: Context,
+        taskId: Int,
+        nextCompleted: Boolean
+    ) {
+        val prefs = context.getSharedPreferences(
+            WidgetBridgeModule.PREFS_NAME,
+            Context.MODE_PRIVATE
+        )
+        val raw = prefs.getString(WidgetBridgeModule.KEY_PAYLOAD, null) ?: return
+        val data = try {
+            JSONObject(raw)
+        } catch (_: Exception) {
+            return
+        }
+
+        val tasksArray = data.optJSONArray("todayTasks") ?: return
+        val uncompletedList = mutableListOf<JSONObject>()
+        val completedList = mutableListOf<JSONObject>()
+        var didChange = false
+        var deltaCompleted = 0
+
+        for (i in 0 until tasksArray.length()) {
+            val obj = tasksArray.optJSONObject(i) ?: continue
+            val id = obj.optInt("id", -1)
+            val prevCompleted = obj.optBoolean("completed", false)
+            val finalCompleted = if (id == taskId) {
+                if (prevCompleted != nextCompleted) {
+                    didChange = true
+                    deltaCompleted = if (nextCompleted) 1 else -1
+                }
+                nextCompleted
+            } else {
+                prevCompleted
+            }
+            obj.put("completed", finalCompleted)
+            if (finalCompleted) {
+                completedList.add(obj)
+            } else {
+                uncompletedList.add(obj)
+            }
+        }
+
+        if (!didChange) {
+            return
+        }
+
+        // Uncompleted tasks stay on top, completed tasks move downside
+        val sortedArray = JSONArray()
+        for (item in uncompletedList) {
+            sortedArray.put(item)
+        }
+        for (item in completedList) {
+            sortedArray.put(item)
+        }
+        data.put("todayTasks", sortedArray)
+
+        val totalToday = data.optInt("totalTodayCount", sortedArray.length())
+        val prevCompletedCount = data.optInt("completedTodayCount", 0)
+        val newCompletedCount = (prevCompletedCount + deltaCompleted).coerceIn(0, totalToday)
+        val newRemainingCount = (totalToday - newCompletedCount).coerceAtLeast(0)
+
+        data.put("completedTodayCount", newCompletedCount)
+        data.put("remainingCount", newRemainingCount)
+
+        // Keep weekly score widget numbers aligned immediately too
+        val weekTaskTotal = data.optInt("taskTotal", 0)
+        if (weekTaskTotal > 0) {
+            val prevWeekCompleted = data.optInt("taskCompleted", 0)
+            val newWeekCompleted = (prevWeekCompleted + deltaCompleted).coerceIn(0, weekTaskTotal)
+            val newWeekPct = Math.round((newWeekCompleted * 100.0) / weekTaskTotal).toInt()
+            data.put("taskCompleted", newWeekCompleted)
+            data.put("taskPct", newWeekPct)
+        }
+
+        val pendingRaw = prefs.getString(WidgetBridgeModule.KEY_PENDING_TOGGLES, "{}") ?: "{}"
+        val pendingJson = try {
+            JSONObject(pendingRaw)
+        } catch (_: Exception) {
+            JSONObject()
+        }
+        pendingJson.put(taskId.toString(), nextCompleted)
+
+        prefs.edit()
+            .putString(WidgetBridgeModule.KEY_PAYLOAD, data.toString())
+            .putString(WidgetBridgeModule.KEY_PENDING_TOGGLES, pendingJson.toString())
+            .apply()
+
+        updateAllWidgets(context)
+        WeeklyScoreWidgetProvider.updateAllWidgets(context)
+    }
 
     override fun onUpdate(
         context: Context,
@@ -109,19 +226,27 @@ class TodayTasksWidgetProvider : AppWidgetProvider() {
         val hasChallenge = data?.optBoolean("hasChallenge", false) ?: false
         val tasksArray = data?.optJSONArray("todayTasks")
 
-        val items = mutableListOf<WidgetTaskItem>()
+        val uncompletedItems = mutableListOf<WidgetTaskItem>()
+        val completedItems = mutableListOf<WidgetTaskItem>()
         if (tasksArray != null) {
             for (i in 0 until tasksArray.length()) {
                 val obj = tasksArray.optJSONObject(i)
                 if (obj != null) {
+                    val id = obj.optInt("id", -1)
                     val title = obj.optString("title", "").trim()
                     val done = obj.optBoolean("completed", false)
                     if (title.isNotEmpty()) {
-                        items.add(WidgetTaskItem(title, done))
+                        val entry = WidgetTaskItem(id, title, done)
+                        if (done) {
+                            completedItems.add(entry)
+                        } else {
+                            uncompletedItems.add(entry)
+                        }
                     }
                 }
             }
         }
+        val items = uncompletedItems + completedItems
 
         val dateFormatter = SimpleDateFormat("EEEE, d MMM", Locale.ENGLISH)
         val headerDate = "TWELV · " + dateFormatter.format(Date()).uppercase(Locale.ENGLISH)
@@ -149,7 +274,7 @@ class TodayTasksWidgetProvider : AppWidgetProvider() {
         )
 
         val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-        val pendingIntent = if (launchIntent != null) {
+        val openAppPendingIntent = if (launchIntent != null) {
             PendingIntent.getActivity(
                 context,
                 101,
@@ -160,11 +285,15 @@ class TodayTasksWidgetProvider : AppWidgetProvider() {
             null
         }
 
+        val toggleAction = context.packageName + ".widgets.ACTION_TOGGLE_TASK"
+
         for (appWidgetId in appWidgetIds) {
             val views = RemoteViews(context.packageName, R.layout.widget_today_tasks)
 
-            if (pendingIntent != null) {
-                views.setOnClickPendingIntent(R.id.widget_tasks_root, pendingIntent)
+            if (openAppPendingIntent != null) {
+                views.setOnClickPendingIntent(R.id.widget_tasks_header, openAppPendingIntent)
+                views.setOnClickPendingIntent(R.id.widget_tasks_footer, openAppPendingIntent)
+                views.setOnClickPendingIntent(R.id.widget_tasks_empty, openAppPendingIntent)
             }
 
             views.setTextViewText(R.id.widget_tasks_date_header, headerDate)
@@ -219,6 +348,23 @@ class TodayTasksWidgetProvider : AppWidgetProvider() {
                                 Paint.ANTI_ALIAS_FLAG
                             )
                         }
+
+                        if (item.id != -1) {
+                            val toggleIntent = Intent(toggleAction).apply {
+                                component = ComponentName(context, TodayTasksWidgetProvider::class.java)
+                                putExtra(EXTRA_TASK_ID, item.id)
+                                putExtra(EXTRA_NEXT_COMPLETED, !item.completed)
+                            }
+                            val togglePendingIntent = PendingIntent.getBroadcast(
+                                context,
+                                200 + idx,
+                                toggleIntent,
+                                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                            )
+                            views.setOnClickPendingIntent(rowContainers[idx], togglePendingIntent)
+                        } else if (openAppPendingIntent != null) {
+                            views.setOnClickPendingIntent(rowContainers[idx], openAppPendingIntent)
+                        }
                     } else {
                         views.setViewVisibility(rowContainers[idx], View.GONE)
                     }
@@ -230,6 +376,9 @@ class TodayTasksWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
+        const val EXTRA_TASK_ID = "extra_task_id"
+        const val EXTRA_NEXT_COMPLETED = "extra_next_completed"
+
         fun updateAllWidgets(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
             val component = ComponentName(context, TodayTasksWidgetProvider::class.java)
@@ -385,19 +534,19 @@ const WIDGET_PROGRESS_DRAWABLE_XML = `<?xml version="1.0" encoding="utf-8"?>
 
 const IC_WIDGET_CHECK_XML = `<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="18dp"
-    android:height="18dp"
+    android:width="22dp"
+    android:height="22dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
-        android:fillColor="#00000000"
+        android:fillColor="#16324A"
         android:pathData="M12,2.5A9.5,9.5 0,1 1,2.5 12A9.5,9.5 0,0 1,12 2.5Z"
-        android:strokeWidth="1.9"
+        android:strokeWidth="2.0"
         android:strokeColor="#38BDF8" />
     <path
         android:fillColor="#00000000"
-        android:pathData="M8.2,12.2L10.8,14.8L16,9.4"
-        android:strokeWidth="2.1"
+        android:pathData="M8.0,12.2L10.8,15.0L16.2,9.2"
+        android:strokeWidth="2.2"
         android:strokeColor="#38BDF8"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
@@ -406,13 +555,15 @@ const IC_WIDGET_CHECK_XML = `<?xml version="1.0" encoding="utf-8"?>
 
 const IC_WIDGET_CIRCLE_XML = `<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="18dp"
-    android:height="18dp"
+    android:width="22dp"
+    android:height="22dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
-        android:fillColor="#64748B"
-        android:pathData="M12,3A9,9 0,1 1,3 12A9,9 0,0 1,12 3Z" />
+        android:fillColor="#00000000"
+        android:pathData="M12,2.8A9.2,9.2 0,1 1,2.8 12A9.2,9.2 0,0 1,12 2.8Z"
+        android:strokeWidth="2.0"
+        android:strokeColor="#64748B" />
 </vector>
 `;
 
@@ -448,6 +599,7 @@ const WIDGET_TODAY_TASKS_LAYOUT_XML = `<?xml version="1.0" encoding="utf-8"?>
 
     <!-- Top Header Row -->
     <LinearLayout
+        android:id="@+id/widget_tasks_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
@@ -479,7 +631,7 @@ const WIDGET_TODAY_TASKS_LAYOUT_XML = `<?xml version="1.0" encoding="utf-8"?>
                 android:maxLines="1"
                 android:text="Today&apos;s focus"
                 android:textColor="#F8FAFC"
-                android:textSize="19sp"
+                android:textSize="20sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -542,7 +694,7 @@ const WIDGET_TODAY_TASKS_LAYOUT_XML = `<?xml version="1.0" encoding="utf-8"?>
             android:layout_marginTop="6dp"
             android:text="No tasks scheduled for today. Tap to add."
             android:textColor="#94A3B8"
-            android:textSize="14sp"
+            android:textSize="15sp"
             android:visibility="gone" />
 
         <!-- Row 1 -->
@@ -551,24 +703,26 @@ const WIDGET_TODAY_TASKS_LAYOUT_XML = `<?xml version="1.0" encoding="utf-8"?>
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp">
 
             <ImageView
                 android:id="@+id/widget_task_icon_1"
-                android:layout_width="18dp"
-                android:layout_height="18dp"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
                 android:src="@drawable/ic_widget_circle" />
 
             <TextView
                 android:id="@+id/widget_task_text_1"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginLeft="11dp"
+                android:layout_marginLeft="12dp"
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="#F1F5F9"
-                android:textSize="15.5sp" />
+                android:textSize="17sp" />
         </LinearLayout>
 
         <!-- Row 2 -->
@@ -576,26 +730,28 @@ const WIDGET_TODAY_TASKS_LAYOUT_XML = `<?xml version="1.0" encoding="utf-8"?>
             android:id="@+id/widget_task_row_2"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="11dp"
+            android:layout_marginTop="4dp"
             android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp">
 
             <ImageView
                 android:id="@+id/widget_task_icon_2"
-                android:layout_width="18dp"
-                android:layout_height="18dp"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
                 android:src="@drawable/ic_widget_circle" />
 
             <TextView
                 android:id="@+id/widget_task_text_2"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginLeft="11dp"
+                android:layout_marginLeft="12dp"
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="#F1F5F9"
-                android:textSize="15.5sp" />
+                android:textSize="17sp" />
         </LinearLayout>
 
         <!-- Row 3 -->
@@ -603,26 +759,28 @@ const WIDGET_TODAY_TASKS_LAYOUT_XML = `<?xml version="1.0" encoding="utf-8"?>
             android:id="@+id/widget_task_row_3"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="11dp"
+            android:layout_marginTop="4dp"
             android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp">
 
             <ImageView
                 android:id="@+id/widget_task_icon_3"
-                android:layout_width="18dp"
-                android:layout_height="18dp"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
                 android:src="@drawable/ic_widget_circle" />
 
             <TextView
                 android:id="@+id/widget_task_text_3"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginLeft="11dp"
+                android:layout_marginLeft="12dp"
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="#F1F5F9"
-                android:textSize="15.5sp" />
+                android:textSize="17sp" />
         </LinearLayout>
 
         <!-- Row 4 -->
@@ -630,26 +788,28 @@ const WIDGET_TODAY_TASKS_LAYOUT_XML = `<?xml version="1.0" encoding="utf-8"?>
             android:id="@+id/widget_task_row_4"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="11dp"
+            android:layout_marginTop="4dp"
             android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp">
 
             <ImageView
                 android:id="@+id/widget_task_icon_4"
-                android:layout_width="18dp"
-                android:layout_height="18dp"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
                 android:src="@drawable/ic_widget_circle" />
 
             <TextView
                 android:id="@+id/widget_task_text_4"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginLeft="11dp"
+                android:layout_marginLeft="12dp"
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="#F1F5F9"
-                android:textSize="15.5sp" />
+                android:textSize="17sp" />
         </LinearLayout>
 
         <!-- Row 5 -->
@@ -657,54 +817,46 @@ const WIDGET_TODAY_TASKS_LAYOUT_XML = `<?xml version="1.0" encoding="utf-8"?>
             android:id="@+id/widget_task_row_5"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="11dp"
+            android:layout_marginTop="4dp"
             android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp">
 
             <ImageView
                 android:id="@+id/widget_task_icon_5"
-                android:layout_width="18dp"
-                android:layout_height="18dp"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
                 android:src="@drawable/ic_widget_circle" />
 
             <TextView
                 android:id="@+id/widget_task_text_5"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginLeft="11dp"
+                android:layout_marginLeft="12dp"
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="#F1F5F9"
-                android:textSize="15.5sp" />
+                android:textSize="17sp" />
         </LinearLayout>
     </LinearLayout>
 
     <!-- Bottom Footer Row -->
     <LinearLayout
+        android:id="@+id/widget_tasks_footer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:gravity="center_vertical"
+        android:layout_marginTop="8dp"
+        android:gravity="end|center_vertical"
         android:orientation="horizontal">
-
-        <TextView
-            android:id="@+id/widget_footer_quote"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="Keep showing up."
-            android:textColor="#64748B"
-            android:textSize="12sp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="View all tasks ↗"
             android:textColor="#38BDF8"
-            android:textSize="12sp"
+            android:textSize="13sp"
             android:textStyle="bold" />
     </LinearLayout>
 </LinearLayout>
@@ -834,8 +986,8 @@ const WIDGET_TODAY_TASKS_INFO_XML = `<?xml version="1.0" encoding="utf-8"?>
     android:description="@string/widget_today_tasks_desc"
     android:initialLayout="@layout/widget_today_tasks"
     android:minWidth="250dp"
-    android:minHeight="180dp"
-    android:minResizeHeight="110dp"
+    android:minHeight="210dp"
+    android:minResizeHeight="120dp"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="1800000"
     android:widgetCategory="home_screen" />
@@ -893,6 +1045,11 @@ function withTwelvWidgets(config) {
               {
                 $: {
                   "android:name": "android.appwidget.action.APPWIDGET_UPDATE",
+                },
+              },
+              {
+                $: {
+                  "android:name": `${androidPackage}.widgets.ACTION_TOGGLE_TASK`,
                 },
               },
             ],

@@ -7,253 +7,339 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card } from "../components/Card";
-import { DatePickerModal } from "../components/DatePickerModal";
-import { PrimaryButton } from "../components/PrimaryButton";
-import { TextField } from "../components/TextField";
+import { ScreenContainer } from "../components/ScreenContainer";
 import { useAppData } from "../context/AppDataContext";
 import { colors, radius, spacing, typography } from "../theme/tokens";
 import { DateString } from "../types";
-import {
-  addDays,
-  formatDisplayDate,
-  formatShortDate,
-  generateTwelveWeeks,
-  getChallengeEndDate,
-  getTodayDateString,
-  getWeekday,
-} from "../utils/date";
+import { formatDateWithWeekday } from "../utils/date";
 
-const CHALLENGE_IDEAS = [
-  "Become a Better Developer",
-  "12-Week Deep Execution Sprint",
-  "Master DSA & System Design",
+const UNIVERSAL_CYCLE_PRESETS: Array<{
+  title: string;
+  subtitle: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}> = [
+  {
+    title: "Health & Fitness Reset",
+    subtitle: "Workouts, nutrition, sleep & daily movement",
+    icon: "fitness-outline",
+  },
+  {
+    title: "Career & Skill Growth",
+    subtitle: "Focused work, portfolio & professional milestones",
+    icon: "briefcase-outline",
+  },
+  {
+    title: "Financial Discipline",
+    subtitle: "Savings targets, budgeting & expense control",
+    icon: "wallet-outline",
+  },
+  {
+    title: "Read, Learn & Focus",
+    subtitle: "Daily reading, courses & distraction-free blocks",
+    icon: "book-outline",
+  },
+  {
+    title: "Daily Routine Mastery",
+    subtitle: "Morning habits, consistency & personal balance",
+    icon: "sunny-outline",
+  },
+  {
+    title: "Creative Project Sprint",
+    subtitle: "Writing, design, content or personal passion work",
+    icon: "color-palette-outline",
+  },
 ];
 
-function getNextMonday(fromDate: DateString): DateString {
-  const weekday = getWeekday(fromDate);
-  const daysUntilMonday = weekday === 1 ? 7 : (8 - weekday) % 7;
-  return addDays(fromDate, daysUntilMonday);
+function parseLocalYmd(ymd: DateString): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd.trim());
+  if (!match) {
+    return null;
+  }
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+}
+
+function toLocalYmd(date: Date): DateString {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}` as DateString;
+}
+
+function addDaysLocal(ymd: DateString, days: number): DateString {
+  const parsed = parseLocalYmd(ymd);
+  if (!parsed) {
+    return ymd;
+  }
+  parsed.setDate(parsed.getDate() + days);
+  return toLocalYmd(parsed);
+}
+
+function getNextMondayLocal(ymd: DateString): DateString {
+  const parsed = parseLocalYmd(ymd);
+  if (!parsed) {
+    return ymd;
+  }
+  const day = parsed.getDay(); // 0 = Sun, 1 = Mon
+  const diff = day === 0 ? 1 : 8 - day;
+  parsed.setDate(parsed.getDate() + diff);
+  return toLocalYmd(parsed);
 }
 
 export function ChallengeSetupScreen() {
-  const insets = useSafeAreaInsets();
-  const { createChallenge } = useAppData();
-  const todayStr = getTodayDateString();
-  const nextMondayStr = useMemo(() => getNextMonday(todayStr), [todayStr]);
+  const { todayStr, createChallenge } = useAppData();
 
-  const [name, setName] = useState("");
+  const [cycleName, setCycleName] = useState("");
   const [startDate, setStartDate] = useState<DateString>(todayStr);
-  const [nameError, setNameError] = useState<string | null>(null);
+  const [errorText, setErrorText] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [pickerVisible, setPickerVisible] = useState(false);
 
-  const endDate = useMemo(() => getChallengeEndDate(startDate), [startDate]);
-  const weeks = useMemo(() => generateTwelveWeeks(startDate), [startDate]);
+  const nextMondayStr = useMemo(() => getNextMondayLocal(todayStr), [todayStr]);
 
-  async function handleCreate() {
-    const trimmed = name.trim();
-    if (trimmed.length < 2) {
-      setNameError("Enter a challenge name with at least 2 characters.");
+  const endDatePreview = useMemo(() => {
+    const valid = parseLocalYmd(startDate);
+    if (!valid) {
+      return null;
+    }
+    return addDaysLocal(startDate, 83);
+  }, [startDate]);
+
+  async function handleStartCycle() {
+    const trimmed = cycleName.trim();
+    if (!trimmed) {
+      setErrorText("Give your 12-week cycle a focus title.");
       return;
     }
-    setNameError(null);
+    if (!parseLocalYmd(startDate)) {
+      setErrorText("Enter a valid start date in YYYY-MM-DD format.");
+      return;
+    }
+
+    setErrorText(null);
     setSubmitting(true);
     try {
       await createChallenge(trimmed, startDate);
+    } catch (err) {
+      setErrorText(
+        err instanceof Error ? err.message : "Could not start cycle.",
+      );
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: insets.top + spacing.xl,
-            paddingBottom: insets.bottom + spacing.xxl,
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
+    <ScreenContainer>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <View style={styles.heroBlock}>
-          <View style={styles.badgePill}>
-            <Ionicons name="flame" size={14} color={colors.primary} />
-            <Text style={styles.badgeText}>12 WEEK YEAR SYSTEM</Text>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollContent}
+        >
+          <View style={styles.heroBlock}>
+            <View style={styles.badge}>
+              <Ionicons
+                name="sparkles-outline"
+                size={14}
+                color={colors.primary}
+              />
+              <Text style={styles.badgeText}>12 WEEK EXECUTION SYSTEM</Text>
+            </View>
+            <Text style={styles.title}>Start your next 12 weeks</Text>
+            <Text style={styles.subtitle}>
+              Turn a year-sized ambition into 84 focused days of clear weekly
+              tasks and consistent daily habits.
+            </Text>
           </View>
-          <Text style={styles.heroTitle}>Start Your 12-Week Challenge</Text>
-          <Text style={styles.heroSubtitle}>
-            Replace scattered task lists, habit trackers, and paper scorecards
-            with one offline execution engine targeting 85%+ every week.
-          </Text>
-        </View>
 
-        <Card style={styles.formCard}>
-          <TextField
-            label="Challenge Name"
-            placeholder="e.g. Become a Better Developer"
-            value={name}
-            onChangeText={(value) => {
-              setName(value);
-              if (nameError) {
-                setNameError(null);
-              }
-            }}
-            errorText={nameError}
-            maxLength={60}
-            returnKeyType="done"
-          />
+          <Card style={styles.formCard}>
+            <Text style={styles.label}>CYCLE FOCUS TITLE</Text>
+            <TextInput
+              value={cycleName}
+              onChangeText={(text) => {
+                setCycleName(text);
+                if (errorText) {
+                  setErrorText(null);
+                }
+              }}
+              placeholder="e.g. Health & Fitness Reset, Career Growth..."
+              placeholderTextColor={colors.textMuted}
+              style={styles.input}
+              maxLength={60}
+              returnKeyType="done"
+            />
 
-          <View style={styles.ideasRow}>
-            {CHALLENGE_IDEAS.map((idea) => (
+            <Text style={styles.presetHeading}>POPULAR STARTING IDEAS</Text>
+            <View style={styles.presetGrid}>
+              {UNIVERSAL_CYCLE_PRESETS.map((preset) => {
+                const selected = cycleName.trim() === preset.title;
+                return (
+                  <Pressable
+                    key={preset.title}
+                    onPress={() => {
+                      setCycleName(preset.title);
+                      setErrorText(null);
+                    }}
+                    style={[
+                      styles.presetCard,
+                      selected && styles.presetCardSelected,
+                    ]}
+                  >
+                    <View style={styles.presetHeader}>
+                      <Ionicons
+                        name={preset.icon}
+                        size={16}
+                        color={selected ? colors.primary : colors.textSecondary}
+                      />
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.presetTitle,
+                          selected && styles.presetTitleSelected,
+                        ]}
+                      >
+                        {preset.title}
+                      </Text>
+                    </View>
+                    <Text numberOfLines={2} style={styles.presetSubtitle}>
+                      {preset.subtitle}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text style={styles.label}>START DATE</Text>
+            <View style={styles.datePresetRow}>
               <Pressable
-                key={idea}
-                style={styles.ideaChip}
                 onPress={() => {
-                  setName(idea);
-                  setNameError(null);
+                  setStartDate(todayStr);
+                  setErrorText(null);
                 }}
+                style={[
+                  styles.dateChip,
+                  startDate === todayStr && styles.dateChipActive,
+                ]}
               >
-                <Text style={styles.ideaChipText}>{idea}</Text>
+                <Text
+                  style={[
+                    styles.dateChipText,
+                    startDate === todayStr && styles.dateChipTextActive,
+                  ]}
+                >
+                  Today
+                </Text>
               </Pressable>
-            ))}
-          </View>
 
-          <View style={styles.dateSection}>
-            <Text style={styles.fieldLabel}>Start Date</Text>
-            <Pressable
-              style={styles.dateSelector}
-              onPress={() => setPickerVisible(true)}
-            >
-              <View style={styles.dateSelectorLeft}>
+              <Pressable
+                onPress={() => {
+                  setStartDate(nextMondayStr);
+                  setErrorText(null);
+                }}
+                style={[
+                  styles.dateChip,
+                  startDate === nextMondayStr && styles.dateChipActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.dateChipText,
+                    startDate === nextMondayStr && styles.dateChipTextActive,
+                  ]}
+                >
+                  Next Monday
+                </Text>
+              </Pressable>
+            </View>
+
+            <TextInput
+              value={startDate}
+              onChangeText={(val) => {
+                setStartDate(val as DateString);
+                if (errorText) {
+                  setErrorText(null);
+                }
+              }}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={colors.textMuted}
+              style={styles.input}
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={10}
+            />
+
+            {endDatePreview ? (
+              <View style={styles.windowBanner}>
                 <Ionicons
                   name="calendar-outline"
-                  size={20}
+                  size={16}
                   color={colors.primary}
                 />
-                <Text style={styles.dateSelectorValue}>
-                  {formatDisplayDate(startDate)}
+                <Text style={styles.windowText}>
+                  84-day cycle: {formatDateWithWeekday(startDate)} →{" "}
+                  {formatDateWithWeekday(endDatePreview)}
                 </Text>
               </View>
-              <Text style={styles.changeLink}>Change</Text>
+            ) : null}
+
+            {errorText ? (
+              <Text style={styles.errorText}>{errorText}</Text>
+            ) : null}
+
+            <Pressable
+              onPress={handleStartCycle}
+              disabled={submitting}
+              style={[
+                styles.launchButton,
+                submitting && styles.launchButtonDisabled,
+              ]}
+            >
+              <Text style={styles.launchButtonText}>
+                {submitting ? "Launching..." : "Launch 12-Week Cycle"}
+              </Text>
+              <Ionicons
+                name="arrow-forward"
+                size={18}
+                color={colors.background}
+              />
             </Pressable>
-
-            <View style={styles.presetRow}>
-              <Pressable
-                style={[
-                  styles.presetChip,
-                  startDate === todayStr && styles.presetChipActive,
-                ]}
-                onPress={() => setStartDate(todayStr)}
-              >
-                <Text
-                  style={[
-                    styles.presetChipText,
-                    startDate === todayStr && styles.presetChipTextActive,
-                  ]}
-                >
-                  Start Today
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.presetChip,
-                  startDate === nextMondayStr && styles.presetChipActive,
-                ]}
-                onPress={() => setStartDate(nextMondayStr)}
-              >
-                <Text
-                  style={[
-                    styles.presetChipText,
-                    startDate === nextMondayStr && styles.presetChipTextActive,
-                  ]}
-                >
-                  Next Monday ({formatShortDate(nextMondayStr)})
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </Card>
-
-        <Card highlighted style={styles.summaryCard}>
-          <View style={styles.summaryHeader}>
-            <Text style={styles.summaryTitle}>12-Week Cycle Preview</Text>
-            <Text style={styles.summaryDuration}>84 Days</Text>
-          </View>
-
-          <View style={styles.boundaryRow}>
-            <View style={styles.boundaryCol}>
-              <Text style={styles.boundaryLabel}>WEEK 1 STARTS</Text>
-              <Text style={styles.boundaryValue}>
-                {formatDisplayDate(startDate)}
-              </Text>
-            </View>
-            <Ionicons name="arrow-forward" size={18} color={colors.textMuted} />
-            <View style={styles.boundaryColRight}>
-              <Text style={styles.boundaryLabel}>WEEK 12 ENDS</Text>
-              <Text style={styles.boundaryValue}>
-                {formatDisplayDate(endDate)}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.weekPreviewStrip}>
-            <Text style={styles.weekPreviewText}>
-              Week 1: {formatShortDate(weeks[0].startDate)} -{" "}
-              {formatShortDate(weeks[0].endDate)}
-            </Text>
-            <Text style={styles.weekPreviewText}>
-              Week 12: {formatShortDate(weeks[11].startDate)} -{" "}
-              {formatShortDate(weeks[11].endDate)}
-            </Text>
-          </View>
-        </Card>
-
-        <PrimaryButton
-          label={
-            submitting ? "Creating Challenge..." : "Launch 12-Week Challenge"
-          }
-          onPress={handleCreate}
-          disabled={submitting}
-        />
-      </ScrollView>
-
-      <DatePickerModal
-        visible={pickerVisible}
-        title="Select Challenge Start Date"
-        selectedDate={startDate}
-        onSelect={setStartDate}
-        onClose={() => setPickerVisible(false)}
-      />
-    </KeyboardAvoidingView>
+          </Card>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
-    backgroundColor: colors.background,
   },
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: spacing.lg,
+  scrollContent: {
+    paddingBottom: spacing.xxl,
     gap: spacing.lg,
   },
   heroBlock: {
     gap: spacing.sm,
+    marginTop: spacing.sm,
   },
-  badgePill: {
+  badge: {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
@@ -261,7 +347,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryMuted,
     borderWidth: 1,
     borderColor: colors.primaryBorder,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 5,
     borderRadius: radius.full,
   },
@@ -269,11 +355,12 @@ const styles = StyleSheet.create({
     ...typography.micro,
     color: colors.primary,
   },
-  heroTitle: {
-    ...typography.hero,
+  title: {
+    ...typography.title,
+    fontSize: 28,
     color: colors.textPrimary,
   },
-  heroSubtitle: {
+  subtitle: {
     ...typography.body,
     color: colors.textSecondary,
     lineHeight: 22,
@@ -281,127 +368,122 @@ const styles = StyleSheet.create({
   formCard: {
     gap: spacing.md,
   },
-  ideasRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.xs,
-  },
-  ideaChip: {
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderRadius: radius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-  },
-  ideaChipText: {
-    ...typography.micro,
-    color: colors.textSecondary,
-  },
-  dateSection: {
-    gap: spacing.xs,
-  },
-  fieldLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  dateSelector: {
-    minHeight: 48,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  dateSelectorLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  dateSelectorValue: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-  },
-  changeLink: {
-    ...typography.caption,
-    color: colors.primary,
-  },
-  presetRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  presetChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-    borderRadius: radius.full,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  presetChipActive: {
-    backgroundColor: colors.primaryMuted,
-    borderColor: colors.primary,
-  },
-  presetChipText: {
-    ...typography.micro,
-    color: colors.textSecondary,
-  },
-  presetChipTextActive: {
-    color: colors.primary,
-  },
-  summaryCard: {
-    gap: spacing.md,
-  },
-  summaryHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  summaryTitle: {
-    ...typography.heading,
-    color: colors.textPrimary,
-  },
-  summaryDuration: {
-    ...typography.caption,
-    color: colors.primary,
-  },
-  boundaryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.md,
-    padding: spacing.md,
-  },
-  boundaryCol: {
-    gap: 2,
-  },
-  boundaryColRight: {
-    alignItems: "flex-end",
-    gap: 2,
-  },
-  boundaryLabel: {
+  label: {
     ...typography.micro,
     color: colors.textMuted,
   },
-  boundaryValue: {
-    ...typography.bodyMedium,
-    fontWeight: "600",
-    color: colors.textPrimary,
+  presetHeading: {
+    ...typography.micro,
+    color: colors.textMuted,
+    marginTop: 2,
   },
-  weekPreviewStrip: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    flexWrap: "wrap",
+  presetGrid: {
     gap: spacing.xs,
   },
-  weekPreviewText: {
+  presetCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    gap: 3,
+  },
+  presetCardSelected: {
+    backgroundColor: colors.primaryMuted,
+    borderColor: colors.primaryBorder,
+  },
+  presetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  presetTitle: {
+    ...typography.caption,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  presetTitleSelected: {
+    color: colors.primary,
+  },
+  presetSubtitle: {
+    ...typography.micro,
+    color: colors.textSecondary,
+    textTransform: "none",
+    letterSpacing: 0,
+  },
+  input: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    color: colors.textPrimary,
+    ...typography.body,
+  },
+  datePresetRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  dateChip: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    alignItems: "center",
+  },
+  dateChipActive: {
+    backgroundColor: colors.primaryMuted,
+    borderColor: colors.primaryBorder,
+  },
+  dateChipText: {
+    ...typography.caption,
+    fontWeight: "600",
+    color: colors.textSecondary,
+  },
+  dateChipTextActive: {
+    color: colors.primary,
+  },
+  windowBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.surfaceElevated,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  windowText: {
     ...typography.caption,
     color: colors.textSecondary,
+    flex: 1,
+  },
+  errorText: {
+    ...typography.caption,
+    color: colors.danger,
+  },
+  launchButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: radius.full,
+    marginTop: spacing.xs,
+  },
+  launchButtonDisabled: {
+    opacity: 0.6,
+  },
+  launchButtonText: {
+    ...typography.bodyMedium,
+    fontWeight: "700",
+    color: colors.background,
   },
 });

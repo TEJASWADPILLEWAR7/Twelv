@@ -44,7 +44,10 @@ import {
   getTodayDateString,
 } from "../utils/date";
 import { computeWeeklySummaries } from "../utils/scoring";
-import { syncAndroidWidgets } from "../utils/widgetSync";
+import {
+  consumePendingWidgetTaskToggles,
+  syncAndroidWidgets,
+} from "../utils/widgetSync";
 
 interface AppDataContextValue {
   isReady: boolean;
@@ -93,7 +96,20 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [logs, setLogs] = useState<HabitLog[]>([]);
   const appStateRef = useRef<string>(AppState.currentState ?? "active");
 
+  const applyWidgetTogglesToDb = useCallback(async () => {
+    const pendingToggles = await consumePendingWidgetTaskToggles();
+    const entries = Object.entries(pendingToggles);
+    if (entries.length === 0) {
+      return;
+    }
+    for (const [idStr, nextCompleted] of entries) {
+      await toggleTaskCompletedRecord(Number(idStr), nextCompleted);
+    }
+  }, []);
+
   const loadSnapshot = useCallback(async () => {
+    await applyWidgetTogglesToDb();
+
     const active = await fetchActiveChallenge();
     setChallenge(active);
     setTodayStr(getTodayDateString());
@@ -115,7 +131,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     setHabits(habitBundle.habits);
     setSchedules(habitBundle.schedules);
     setLogs(habitBundle.logs);
-  }, []);
+  }, [applyWidgetTogglesToDb]);
 
   useEffect(() => {
     let mounted = true;
@@ -159,15 +175,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       appStateRef.current = nextState;
 
       if (wasBackground && nextState === "active") {
-        const latestToday = getTodayDateString();
-        setTodayStr((prev) => (prev === latestToday ? prev : latestToday));
+        void loadSnapshot();
       }
     });
 
     return () => {
       subscription.remove();
     };
-  }, []);
+  }, [loadSnapshot]);
 
   const refreshAll = useCallback(async () => {
     await loadSnapshot();
