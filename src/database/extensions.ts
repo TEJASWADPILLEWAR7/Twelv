@@ -1,5 +1,12 @@
 import type { SQLiteDatabase } from "expo-sqlite";
-import { CategoryScore, DateString } from "../types";
+import {
+  CategoryScore,
+  DateString,
+  Habit,
+  HabitLog,
+  HabitSchedule,
+  Task,
+} from "../types";
 import { getNowIsoLocal } from "../utils/date";
 import { buildCategoryScore } from "../utils/scoring";
 
@@ -299,12 +306,12 @@ export async function upsertWeeklyReviewRecord(
 
 export function computeGoalBreakdowns(params: {
   goals: CycleGoal[];
-  tasks: Array<{ id: number; completed: boolean; scheduledDate: DateString }>;
+  tasks: Task[];
   taskGoalMap: Record<number, number | null>;
-  habits: Array<{ id: number; active: boolean; createdAt: string }>;
+  habits: Habit[];
   habitGoalMap: Record<number, number | null>;
-  schedules: Array<{ habitId: number; weekday: number }>;
-  logs: Array<{ habitId: number; logDate: DateString }>;
+  schedules: HabitSchedule[];
+  logs: HabitLog[];
   startDate: DateString;
   endDate: DateString;
 }): GoalExecutionBreakdown[] {
@@ -322,7 +329,6 @@ export function computeGoalBreakdowns(params: {
 
   const logSet = new Set(logs.map((l) => `${l.habitId}:${l.logDate}`));
 
-  // Build date list between startDate and endDate inclusive
   const dates: DateString[] = [];
   const startParts = startDate.split("-").map(Number);
   const endParts = endDate.split("-").map(Number);
@@ -348,9 +354,17 @@ export function computeGoalBreakdowns(params: {
     const completedTasks = matchingTasks.filter((t) => t.completed).length;
     const taskScore = buildCategoryScore(completedTasks, matchingTasks.length);
 
-    const matchingHabits = habits.filter(
-      (h) => h.active && habitGoalMap[h.id] === goal.id,
-    );
+    const matchingHabits = habits.filter((h) => {
+      const rec = h as unknown as Record<string, unknown>;
+      const isActive =
+        typeof rec.active === "boolean"
+          ? rec.active
+          : typeof rec.isActive === "boolean"
+            ? rec.isActive
+            : true;
+      return isActive && habitGoalMap[h.id] === goal.id;
+    });
+
     let totalHabitSlots = 0;
     let completedHabitSlots = 0;
 
@@ -358,9 +372,19 @@ export function computeGoalBreakdowns(params: {
       const [yy, mm, dd] = dateStr.split("-").map(Number);
       const weekday = new Date(yy, mm - 1, dd).getDay();
       for (const habit of matchingHabits) {
-        const scheduled = schedules.some(
-          (s) => s.habitId === habit.id && s.weekday === weekday,
-        );
+        const scheduled = schedules.some((s) => {
+          if (s.habitId !== habit.id) {
+            return false;
+          }
+          const rec = s as unknown as Record<string, unknown>;
+          const dayVal =
+            typeof rec.dayOfWeek === "number"
+              ? rec.dayOfWeek
+              : typeof rec.weekday === "number"
+                ? rec.weekday
+                : rec.day_of_week;
+          return dayVal === weekday;
+        });
         if (scheduled) {
           totalHabitSlots += 1;
           if (logSet.has(`${habit.id}:${dateStr}`)) {

@@ -164,33 +164,42 @@ export function GoalPillarsCard() {
         </Text>
       ) : (
         <View style={styles.list}>
-          {breakdowns.map(({ goal, tasks: tScore, overallPercentage }) => (
-            <View key={goal.id} style={styles.goalRow}>
-              <View style={styles.goalTop}>
-                <View style={styles.goalLabelRow}>
-                  <View style={[styles.dot, { backgroundColor: goal.color }]} />
-                  <Text numberOfLines={1} style={styles.goalTitle}>
-                    {goal.title}
-                  </Text>
-                </View>
-                <Text style={styles.goalPct}>
-                  {tScore.total > 0 ? `${overallPercentage}%` : "No items yet"}
-                </Text>
-              </View>
+          {breakdowns.map(
+            ({ goal, tasks: tScore, habits: hScore, overallPercentage }) => {
+              const totalItems = tScore.total + hScore.total;
+              return (
+                <View key={goal.id} style={styles.goalRow}>
+                  <View style={styles.goalTop}>
+                    <View style={styles.goalLabelRow}>
+                      <View
+                        style={[styles.dot, { backgroundColor: goal.color }]}
+                      />
+                      <Text numberOfLines={1} style={styles.goalTitle}>
+                        {goal.title}
+                      </Text>
+                    </View>
+                    <Text style={styles.goalPct}>
+                      {totalItems > 0
+                        ? `${overallPercentage}%`
+                        : "No items yet"}
+                    </Text>
+                  </View>
 
-              <View style={styles.barTrack}>
-                <View
-                  style={[
-                    styles.barFill,
-                    {
-                      backgroundColor: goal.color,
-                      width: `${Math.min(100, overallPercentage)}%`,
-                    },
-                  ]}
-                />
-              </View>
-            </View>
-          ))}
+                  <View style={styles.barTrack}>
+                    <View
+                      style={[
+                        styles.barFill,
+                        {
+                          backgroundColor: goal.color,
+                          width: `${Math.min(100, overallPercentage)}%`,
+                        },
+                      ]}
+                    />
+                  </View>
+                </View>
+              );
+            },
+          )}
         </View>
       )}
     </Card>
