@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,7 +13,8 @@ import {
 } from "react-native";
 import { Card } from "../components/Card";
 import { ScreenContainer } from "../components/ScreenContainer";
-import { useAppData } from "../context/AppDataContext";
+import { NewCycleGoalInput, useAppData } from "../context/AppDataContext";
+import { GOAL_PALETTE } from "../database/extensions";
 import { colors, radius, spacing, typography } from "../theme/tokens";
 import { DateString } from "../types";
 import { formatDateWithWeekday } from "../utils/date";
@@ -21,36 +23,67 @@ const UNIVERSAL_CYCLE_PRESETS: Array<{
   title: string;
   subtitle: string;
   icon: keyof typeof Ionicons.glyphMap;
+  suggestedGoals: string[];
 }> = [
   {
     title: "Health & Fitness Reset",
     subtitle: "Workouts, nutrition, sleep & daily movement",
     icon: "fitness-outline",
+    suggestedGoals: [
+      "4x Weekly Strength & Cardio",
+      "Clean Daily Nutrition",
+      "7.5h Consistent Sleep",
+    ],
   },
   {
     title: "Career & Skill Growth",
     subtitle: "Focused work, portfolio & professional milestones",
     icon: "briefcase-outline",
+    suggestedGoals: [
+      "Complete Core Skill Track",
+      "Ship Key Portfolio Work",
+      "Weekly Networking & Outreach",
+    ],
   },
   {
     title: "Financial Discipline",
     subtitle: "Savings targets, budgeting & expense control",
     icon: "wallet-outline",
+    suggestedGoals: [
+      "Hit Monthly Savings Target",
+      "Zero Impulse Spending",
+      "Track Every Expense",
+    ],
   },
   {
     title: "Read, Learn & Focus",
     subtitle: "Daily reading, courses & distraction-free blocks",
     icon: "book-outline",
+    suggestedGoals: [
+      "Finish 4 Non-Fiction Books",
+      "90 Min Daily Deep Focus",
+      "Weekly Summary Notes",
+    ],
   },
   {
     title: "Daily Routine Mastery",
     subtitle: "Morning habits, consistency & personal balance",
     icon: "sunny-outline",
+    suggestedGoals: [
+      "Screen-Free Morning Hour",
+      "Hit 85%+ Weekly Execution",
+      "Sunday Weekly Review",
+    ],
   },
   {
     title: "Creative Project Sprint",
     subtitle: "Writing, design, content or personal passion work",
     icon: "color-palette-outline",
+    suggestedGoals: [
+      "Publish Weekly Creations",
+      "Daily 45 Min Craft Practice",
+      "Finish Flagship Project",
+    ],
   },
 ];
 
@@ -94,17 +127,20 @@ function getNextMondayLocal(ymd: DateString): DateString {
   if (!parsed) {
     return ymd;
   }
-  const day = parsed.getDay(); // 0 = Sun, 1 = Mon
+  const day = parsed.getDay();
   const diff = day === 0 ? 1 : 8 - day;
   parsed.setDate(parsed.getDate() + diff);
   return toLocalYmd(parsed);
 }
 
 export function ChallengeSetupScreen() {
-  const { todayStr, createChallenge } = useAppData();
+  const { todayStr, createChallenge, importBackup } = useAppData();
 
   const [cycleName, setCycleName] = useState("");
   const [startDate, setStartDate] = useState<DateString>(todayStr);
+  const [goalDrafts, setGoalDrafts] = useState<NewCycleGoalInput[]>([
+    { title: "", color: GOAL_PALETTE[0].hex },
+  ]);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -117,6 +153,24 @@ export function ChallengeSetupScreen() {
     }
     return addDaysLocal(startDate, 83);
   }, [startDate]);
+
+  function handleGoalTextChange(index: number, value: string) {
+    setGoalDrafts((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, title: value } : item)),
+    );
+  }
+
+  function handleAddGoalSlot() {
+    if (goalDrafts.length >= 3) {
+      return;
+    }
+    const nextColor = GOAL_PALETTE[goalDrafts.length % GOAL_PALETTE.length].hex;
+    setGoalDrafts((prev) => [...prev, { title: "", color: nextColor }]);
+  }
+
+  function handleRemoveGoalSlot(index: number) {
+    setGoalDrafts((prev) => prev.filter((_, i) => i !== index));
+  }
 
   async function handleStartCycle() {
     const trimmed = cycleName.trim();
@@ -132,13 +186,27 @@ export function ChallengeSetupScreen() {
     setErrorText(null);
     setSubmitting(true);
     try {
-      await createChallenge(trimmed, startDate);
+      await createChallenge(trimmed, startDate, goalDrafts);
     } catch (err) {
       setErrorText(
         err instanceof Error ? err.message : "Could not start cycle.",
       );
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleRestoreBackup() {
+    try {
+      const restored = await importBackup();
+      if (restored) {
+        Alert.alert("Backup Restored", "Your 12-week cycle has been loaded.");
+      }
+    } catch (err) {
+      Alert.alert(
+        "Restore Failed",
+        err instanceof Error ? err.message : "Could not read backup file.",
+      );
     }
   }
 
@@ -154,14 +222,29 @@ export function ChallengeSetupScreen() {
           contentContainerStyle={styles.scrollContent}
         >
           <View style={styles.heroBlock}>
-            <View style={styles.badge}>
-              <Ionicons
-                name="sparkles-outline"
-                size={14}
-                color={colors.primary}
-              />
-              <Text style={styles.badgeText}>12 WEEK EXECUTION SYSTEM</Text>
+            <View style={styles.topActionRow}>
+              <View style={styles.badge}>
+                <Ionicons
+                  name="sparkles-outline"
+                  size={14}
+                  color={colors.primary}
+                />
+                <Text style={styles.badgeText}>12 WEEK EXECUTION SYSTEM</Text>
+              </View>
+
+              <Pressable
+                onPress={handleRestoreBackup}
+                style={styles.restoreChip}
+              >
+                <Ionicons
+                  name="cloud-upload-outline"
+                  size={14}
+                  color={colors.primary}
+                />
+                <Text style={styles.restoreChipText}>Restore Backup</Text>
+              </Pressable>
             </View>
+
             <Text style={styles.title}>Start your next 12 weeks</Text>
             <Text style={styles.subtitle}>
               Turn a year-sized ambition into 84 focused days of clear weekly
@@ -195,6 +278,12 @@ export function ChallengeSetupScreen() {
                     key={preset.title}
                     onPress={() => {
                       setCycleName(preset.title);
+                      setGoalDrafts(
+                        preset.suggestedGoals.map((g, idx) => ({
+                          title: g,
+                          color: GOAL_PALETTE[idx % GOAL_PALETTE.length].hex,
+                        })),
+                      );
                       setErrorText(null);
                     }}
                     style={[
@@ -224,6 +313,53 @@ export function ChallengeSetupScreen() {
                   </Pressable>
                 );
               })}
+            </View>
+
+            <View style={styles.goalHeaderRow}>
+              <Text style={styles.label}>12-WEEK GOAL PILLARS (UP TO 3)</Text>
+              {goalDrafts.length < 3 ? (
+                <Pressable
+                  onPress={handleAddGoalSlot}
+                  style={styles.addGoalBtn}
+                >
+                  <Ionicons name="add" size={14} color={colors.primary} />
+                  <Text style={styles.addGoalBtnText}>Add Goal</Text>
+                </Pressable>
+              ) : null}
+            </View>
+
+            <View style={styles.goalsList}>
+              {goalDrafts.map((goal, idx) => (
+                <View key={idx} style={styles.goalInputRow}>
+                  <View
+                    style={[
+                      styles.goalColorDot,
+                      { backgroundColor: goal.color },
+                    ]}
+                  />
+                  <TextInput
+                    value={goal.title}
+                    onChangeText={(val) => handleGoalTextChange(idx, val)}
+                    placeholder={`Goal ${idx + 1} (optional)`}
+                    placeholderTextColor={colors.textMuted}
+                    style={[styles.input, styles.goalInput]}
+                    maxLength={50}
+                  />
+                  {goalDrafts.length > 1 ? (
+                    <Pressable
+                      onPress={() => handleRemoveGoalSlot(idx)}
+                      hitSlop={8}
+                      style={styles.removeGoalBtn}
+                    >
+                      <Ionicons
+                        name="close-circle"
+                        size={18}
+                        color={colors.textMuted}
+                      />
+                    </Pressable>
+                  ) : null}
+                </View>
+              ))}
             </View>
 
             <Text style={styles.label}>START DATE</Text>
@@ -339,10 +475,16 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.sm,
   },
+  topActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    flexWrap: "wrap",
+  },
   badge: {
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "flex-start",
     gap: 6,
     backgroundColor: colors.primaryMuted,
     borderWidth: 1,
@@ -353,6 +495,22 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     ...typography.micro,
+    color: colors.primary,
+  },
+  restoreChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    borderRadius: radius.full,
+  },
+  restoreChipText: {
+    ...typography.caption,
+    fontWeight: "600",
     color: colors.primary,
   },
   title: {
@@ -412,6 +570,48 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textTransform: "none",
     letterSpacing: 0,
+  },
+  goalHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 2,
+  },
+  addGoalBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+    backgroundColor: colors.primaryMuted,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  addGoalBtnText: {
+    ...typography.caption,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  goalsList: {
+    gap: spacing.xs,
+  },
+  goalInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  goalColorDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  goalInput: {
+    flex: 1,
+    paddingVertical: 10,
+  },
+  removeGoalBtn: {
+    padding: 2,
   },
   input: {
     backgroundColor: colors.surfaceElevated,

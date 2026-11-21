@@ -52,6 +52,7 @@ export function syncAndroidWidgets(params: {
   if (!challenge) {
     WidgetBridge.updateWidgetData(
       JSON.stringify({
+        syncedDate: todayStr,
         hasChallenge: false,
         weekLabel: "Twelv · Setup",
         remainingCount: 0,
@@ -147,6 +148,7 @@ export function syncAndroidWidgets(params: {
 
   WidgetBridge.updateWidgetData(
     JSON.stringify({
+      syncedDate: todayStr,
       hasChallenge: true,
       weekLabel: currentSummary
         ? `Week ${currentSummary.weekNumber} of 12`

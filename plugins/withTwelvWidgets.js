@@ -102,13 +102,21 @@ class TodayTasksWidgetProvider : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
+        val action = intent.action
         val toggleAction = context.packageName + ".widgets.ACTION_TOGGLE_TASK"
-        if (intent.action == toggleAction) {
+
+        if (action == toggleAction) {
             val taskId = intent.getIntExtra(EXTRA_TASK_ID, -1)
             val nextCompleted = intent.getBooleanExtra(EXTRA_NEXT_COMPLETED, false)
             if (taskId != -1) {
                 handleToggleTaskFromWidget(context, taskId, nextCompleted)
             }
+        } else if (
+            action == Intent.ACTION_DATE_CHANGED ||
+            action == Intent.ACTION_TIME_SET ||
+            action == Intent.ACTION_TIMEZONE_CHANGED
+        ) {
+            updateAllWidgets(context)
         }
     }
 
@@ -125,6 +133,13 @@ class TodayTasksWidgetProvider : AppWidgetProvider() {
         val data = try {
             JSONObject(raw)
         } catch (_: Exception) {
+            return
+        }
+
+        val todayYmd = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        val syncedDate = data.optString("syncedDate", "")
+        if (syncedDate.isNotEmpty() && syncedDate != todayYmd) {
+            updateAllWidgets(context)
             return
         }
 
@@ -177,7 +192,6 @@ class TodayTasksWidgetProvider : AppWidgetProvider() {
         data.put("completedTodayCount", newCompletedCount)
         data.put("remainingCount", newRemainingCount)
 
-        // Keep weekly score widget numbers aligned immediately too
         val weekTaskTotal = data.optInt("taskTotal", 0)
         if (weekTaskTotal > 0) {
             val prevWeekCompleted = data.optInt("taskCompleted", 0)
@@ -220,11 +234,15 @@ class TodayTasksWidgetProvider : AppWidgetProvider() {
             null
         }
 
-        val remainingCount = data?.optInt("remainingCount", 0) ?: 0
-        val completedToday = data?.optInt("completedTodayCount", 0) ?: 0
-        val totalToday = data?.optInt("totalTodayCount", 0) ?: 0
+        val todayYmd = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        val syncedDate = data?.optString("syncedDate", "") ?: ""
+        val isStaleDay = syncedDate.isNotEmpty() && syncedDate != todayYmd
+
         val hasChallenge = data?.optBoolean("hasChallenge", false) ?: false
-        val tasksArray = data?.optJSONArray("todayTasks")
+        val remainingCount = if (isStaleDay) 0 else (data?.optInt("remainingCount", 0) ?: 0)
+        val completedToday = if (isStaleDay) 0 else (data?.optInt("completedTodayCount", 0) ?: 0)
+        val totalToday = if (isStaleDay) 0 else (data?.optInt("totalTodayCount", 0) ?: 0)
+        val tasksArray = if (isStaleDay) null else data?.optJSONArray("todayTasks")
 
         val uncompletedItems = mutableListOf<WidgetTaskItem>()
         val completedItems = mutableListOf<WidgetTaskItem>()
@@ -300,6 +318,7 @@ class TodayTasksWidgetProvider : AppWidgetProvider() {
 
             val badgeText = when {
                 !hasChallenge -> "Setup"
+                isStaleDay -> "Today"
                 remainingCount == 0 && totalToday > 0 -> "Done"
                 else -> "" + remainingCount + " left"
             }
@@ -320,6 +339,7 @@ class TodayTasksWidgetProvider : AppWidgetProvider() {
                 views.setViewVisibility(R.id.widget_tasks_empty, View.VISIBLE)
                 val emptyMsg = when {
                     !hasChallenge -> "Open Twelv to start your 12-week cycle."
+                    isStaleDay -> "New day! Tap to load today's focus."
                     else -> "No tasks scheduled for today. Tap to add."
                 }
                 views.setTextViewText(R.id.widget_tasks_empty, emptyMsg)
@@ -400,12 +420,25 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.widget.RemoteViews
 import ${androidPackage}.R
 import org.json.JSONObject
 
 class WeeklyScoreWidgetProvider : AppWidgetProvider() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        val action = intent.action
+        if (
+            action == Intent.ACTION_DATE_CHANGED ||
+            action == Intent.ACTION_TIME_SET ||
+            action == Intent.ACTION_TIMEZONE_CHANGED
+        ) {
+            updateAllWidgets(context)
+        }
+    }
 
     override fun onUpdate(
         context: Context,
@@ -721,6 +754,7 @@ const WIDGET_TODAY_TASKS_LAYOUT_XML = `<?xml version="1.0" encoding="utf-8"?>
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
+                android:text="Morning workout"
                 android:textColor="#F1F5F9"
                 android:textSize="17sp" />
         </LinearLayout>
@@ -750,6 +784,7 @@ const WIDGET_TODAY_TASKS_LAYOUT_XML = `<?xml version="1.0" encoding="utf-8"?>
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
+                android:text="Read 20 pages"
                 android:textColor="#F1F5F9"
                 android:textSize="17sp" />
         </LinearLayout>
@@ -779,6 +814,7 @@ const WIDGET_TODAY_TASKS_LAYOUT_XML = `<?xml version="1.0" encoding="utf-8"?>
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
+                android:text="Review weekly priorities"
                 android:textColor="#F1F5F9"
                 android:textSize="17sp" />
         </LinearLayout>
@@ -985,6 +1021,7 @@ const WIDGET_TODAY_TASKS_INFO_XML = `<?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/widget_today_tasks_desc"
     android:initialLayout="@layout/widget_today_tasks"
+    android:previewLayout="@layout/widget_today_tasks"
     android:minWidth="250dp"
     android:minHeight="210dp"
     android:minResizeHeight="120dp"
@@ -997,6 +1034,7 @@ const WIDGET_WEEKLY_SCORE_INFO_XML = `<?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/widget_weekly_score_desc"
     android:initialLayout="@layout/widget_weekly_score"
+    android:previewLayout="@layout/widget_weekly_score"
     android:minWidth="250dp"
     android:minHeight="110dp"
     android:resizeMode="horizontal|vertical"
@@ -1052,6 +1090,21 @@ function withTwelvWidgets(config) {
                   "android:name": `${androidPackage}.widgets.ACTION_TOGGLE_TASK`,
                 },
               },
+              {
+                $: {
+                  "android:name": "android.intent.action.DATE_CHANGED",
+                },
+              },
+              {
+                $: {
+                  "android:name": "android.intent.action.TIME_SET",
+                },
+              },
+              {
+                $: {
+                  "android:name": "android.intent.action.TIMEZONE_CHANGED",
+                },
+              },
             ],
           },
         ],
@@ -1076,6 +1129,21 @@ function withTwelvWidgets(config) {
               {
                 $: {
                   "android:name": "android.appwidget.action.APPWIDGET_UPDATE",
+                },
+              },
+              {
+                $: {
+                  "android:name": "android.intent.action.DATE_CHANGED",
+                },
+              },
+              {
+                $: {
+                  "android:name": "android.intent.action.TIME_SET",
+                },
+              },
+              {
+                $: {
+                  "android:name": "android.intent.action.TIMEZONE_CHANGED",
                 },
               },
             ],
