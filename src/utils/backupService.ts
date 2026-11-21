@@ -26,12 +26,14 @@ export interface TwelvBackupPayload {
   habits: Array<{
     old_id: number;
     title: string;
-    active: number;
+    active?: number;
+    ended_on?: string | null;
     created_at: string;
   }>;
   schedules: Array<{
     old_habit_id: number;
     weekday: number;
+    effective_from?: string;
   }>;
   logs: Array<{
     old_habit_id: number;
@@ -86,41 +88,63 @@ export async function buildBackupJson(db: SQLiteDatabase): Promise<string> {
     [challenge.id],
   );
 
-  const habits = await db.getAllAsync<{
-    id: number;
-    title: string;
-    active: number;
-    created_at: string;
-  }>(
-    `SELECT id, title, active, created_at FROM habits WHERE challenge_id = ? ORDER BY id ASC;`,
+  const habitRows = await db.getAllAsync<Record<string, unknown>>(
+    `SELECT * FROM habits WHERE challenge_id = ? ORDER BY id ASC;`,
     [challenge.id],
   );
 
-  const schedules: Array<{ old_habit_id: number; weekday: number }> = [];
+  const schedCols = await db.getAllAsync<{ name: string }>(
+    `PRAGMA table_info(habit_schedules);`,
+  );
+  const hasEffectiveFrom = schedCols.some((c) => c.name === "effective_from");
+
+  const schedules: Array<{
+    old_habit_id: number;
+    weekday: number;
+    effective_from?: string;
+  }> = [];
   const logs: Array<{
     old_habit_id: number;
     log_date: string;
     created_at: string;
   }> = [];
 
-  for (const habit of habits) {
-    const sRows = await db.getAllAsync<{ weekday: number }>(
-      `SELECT weekday FROM habit_schedules WHERE habit_id = ?;`,
-      [habit.id],
-    );
-    for (const s of sRows) {
-      schedules.push({ old_habit_id: habit.id, weekday: s.weekday });
+  for (const habit of habitRows) {
+    const habitId = Number(habit.id);
+    if (hasEffectiveFrom) {
+      const sRows = await db.getAllAsync<{
+        weekday: number;
+        effective_from: string;
+      }>(
+        `SELECT weekday, effective_from FROM habit_schedules WHERE habit_id = ?;`,
+        [habitId],
+      );
+      for (const s of sRows) {
+        schedules.push({
+          old_habit_id: habitId,
+          weekday: s.weekday,
+          effective_from: s.effective_from,
+        });
+      }
+    } else {
+      const sRows = await db.getAllAsync<{ weekday: number }>(
+        `SELECT weekday FROM habit_schedules WHERE habit_id = ?;`,
+        [habitId],
+      );
+      for (const s of sRows) {
+        schedules.push({ old_habit_id: habitId, weekday: s.weekday });
+      }
     }
 
     const lRows = await db.getAllAsync<{
       log_date: string;
       created_at: string;
     }>(`SELECT log_date, created_at FROM habit_logs WHERE habit_id = ?;`, [
-      habit.id,
+      habitId,
     ]);
     for (const l of lRows) {
       logs.push({
-        old_habit_id: habit.id,
+        old_habit_id: habitId,
         log_date: l.log_date,
         created_at: l.created_at,
       });
@@ -157,11 +181,12 @@ export async function buildBackupJson(db: SQLiteDatabase): Promise<string> {
       created_at: t.created_at,
       updated_at: t.updated_at,
     })),
-    habits: habits.map((h) => ({
-      old_id: h.id,
-      title: h.title,
-      active: h.active,
-      created_at: h.created_at,
+    habits: habitRows.map((h) => ({
+      old_id: Number(h.id),
+      title: String(h.title ?? ""),
+      active: typeof h.active === "number" ? h.active : h.ended_on ? 0 : 1,
+      ended_on: typeof h.ended_on === "string" ? h.ended_on : null,
+      created_at: String(h.created_at ?? ""),
     })),
     schedules,
     logs,
@@ -225,6 +250,12 @@ export async function restoreBackupPayload(
   db: SQLiteDatabase,
   payload: TwelvBackupPayload,
 ): Promise<void> {
+  const habitCols = await db.getAllAsync<{ name: string }>(
+    `PRAGMA table_info(habits);`,
+  );
+  const hasActive = habitCols.some((c) => c.name === "active");
+  const hasEndedOn = habitCols.some((c) => c.name === "ended_on");
+
   const schedCols = await db.getAllAsync<{ name: string }>(
     `PRAGMA table_info(habit_schedules);`,
   );
@@ -277,15 +308,24 @@ export async function restoreBackupPayload(
 
     const habitIdMap = new Map<number, number>();
     for (const h of payload.habits ?? []) {
+      const cols = ["challenge_id", "title", "created_at"];
+      const vals: Array<string | number | null> = [
+        newChallengeId,
+        h.title,
+        h.created_at || getNowIsoLocal(),
+      ];
+      if (hasActive) {
+        cols.push("active");
+        vals.push(h.active === 0 ? 0 : 1);
+      }
+      if (hasEndedOn) {
+        cols.push("ended_on");
+        vals.push(h.ended_on ?? null);
+      }
+      const placeholders = cols.map(() => "?").join(", ");
       const hRes = await db.runAsync(
-        `INSERT INTO habits (challenge_id, title, active, created_at)
-         VALUES (?, ?, ?, ?);`,
-        [
-          newChallengeId,
-          h.title,
-          h.active ? 1 : 0,
-          h.created_at || getNowIsoLocal(),
-        ],
+        "INSERT INTO habits (" + cols.join(", ") + ") VALUES (" + placeholders + ");",
+        vals,
       );
       habitIdMap.set(h.old_id, Number(hRes.lastInsertRowId));
     }
@@ -296,7 +336,11 @@ export async function restoreBackupPayload(
         if (hasEffectiveFrom) {
           await db.runAsync(
             `INSERT INTO habit_schedules (habit_id, weekday, effective_from) VALUES (?, ?, ?);`,
-            [mappedHabitId, s.weekday, payload.challenge.start_date],
+            [
+              mappedHabitId,
+              s.weekday,
+              s.effective_from || payload.challenge.start_date,
+            ],
           );
         } else {
           await db.runAsync(

@@ -18,6 +18,8 @@ export function ActiveWeekQuoteBanner() {
     return null;
   }
 
+  const authorText = current.author.trim();
+
   return (
     <View style={styles.container}>
       <View style={styles.accentBar} />
@@ -25,10 +27,11 @@ export function ActiveWeekQuoteBanner() {
         <Text numberOfLines={3} style={styles.quoteText}>
           "{current.quoteText.trim()}"
         </Text>
-        <Text numberOfLines={1} style={styles.metaText}>
-          WEEK {activeWeekNumber} INSPIRATION
-          {current.author.trim() ? " - " + current.author.trim() : ""}
-        </Text>
+        {authorText.length > 0 ? (
+          <Text numberOfLines={1} style={styles.authorText}>
+            - {authorText}
+          </Text>
+        ) : null}
       </View>
     </View>
   );
@@ -54,7 +57,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    gap: 3,
+    gap: 2,
   },
   quoteText: {
     ...typography.caption,
@@ -62,7 +65,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     lineHeight: 18,
   },
-  metaText: {
+  authorText: {
     ...typography.micro,
     color: colors.textMuted,
   },
