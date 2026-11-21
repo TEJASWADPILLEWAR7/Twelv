@@ -113,7 +113,7 @@ class TodayTasksWidgetProvider : AppWidgetProvider() {
             }
         } else if (
             action == Intent.ACTION_DATE_CHANGED ||
-            action == Intent.ACTION_TIME_SET ||
+            action == Intent.ACTION_TIME_CHANGED ||
             action == Intent.ACTION_TIMEZONE_CHANGED
         ) {
             updateAllWidgets(context)
@@ -433,7 +433,7 @@ class WeeklyScoreWidgetProvider : AppWidgetProvider() {
         val action = intent.action
         if (
             action == Intent.ACTION_DATE_CHANGED ||
-            action == Intent.ACTION_TIME_SET ||
+            action == Intent.ACTION_TIME_CHANGED ||
             action == Intent.ACTION_TIMEZONE_CHANGED
         ) {
             updateAllWidgets(context)
