@@ -1,3 +1,4 @@
+import { CycleStartCalendarPicker } from "../components/CycleStartCalendarPicker";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import {
@@ -299,21 +300,16 @@ export function ChallengeSetupScreen() {
               </Pressable>
             </View>
 
-            <TextInput
-              value={startDate}
-              onChangeText={(val) => {
+            <CycleStartCalendarPicker
+            value={startDate}
+            onChange={(val) => {
                 setStartDate(val as DateString);
                 if (errorText) {
                   setErrorText(null);
                 }
               }}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={colors.textMuted}
-              style={styles.input}
-              autoCapitalize="none"
-              autoCorrect={false}
-              maxLength={10}
-            />
+            todayStr={todayStr}
+          />
 
             {endDatePreview ? (
               <View style={styles.windowBanner}>
