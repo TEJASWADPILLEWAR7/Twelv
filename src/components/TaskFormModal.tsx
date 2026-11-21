@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -29,17 +29,49 @@ interface TaskFormModalProps {
   onClose: () => void;
 }
 
-function addDaysSimple(ymd: DateString, days: number): DateString {
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function parseYmd(ymd: DateString): { year: number; month: number; day: number } | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
   if (!match) {
+    return null;
+  }
+  return {
+    year: Number(match[1]),
+    month: Number(match[2]) - 1,
+    day: Number(match[3]),
+  };
+}
+
+function toYmd(year: number, month: number, day: number): DateString {
+  const m = String(month + 1).padStart(2, "0");
+  const d = String(day).padStart(2, "0");
+  return (year + "-" + m + "-" + d) as DateString;
+}
+
+function addDaysSimple(ymd: DateString, days: number): DateString {
+  const parsed = parseYmd(ymd);
+  if (!parsed) {
     return ymd;
   }
-  const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const d = new Date(parsed.year, parsed.month, parsed.day);
   d.setDate(d.getDate() + days);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return (y + "-" + m + "-" + day) as DateString;
+  return toYmd(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
 export function TaskFormModal({
@@ -54,6 +86,13 @@ export function TaskFormModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [scheduledDate, setScheduledDate] = useState<DateString>(todayStr);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [viewYear, setViewYear] = useState<number>(() => {
+    return parseYmd(todayStr)?.year ?? new Date().getFullYear();
+  });
+  const [viewMonth, setViewMonth] = useState<number>(() => {
+    return parseYmd(todayStr)?.month ?? new Date().getMonth();
+  });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -68,29 +107,107 @@ export function TaskFormModal({
     if (!visible) {
       return;
     }
+    const initialDate = editingTask ? editingTask.scheduledDate : defaultValidDate;
     if (editingTask) {
       setTitle(editingTask.title);
       setDescription(editingTask.description ?? "");
-      setScheduledDate(editingTask.scheduledDate);
     } else {
       setTitle("");
       setDescription("");
-      setScheduledDate(defaultValidDate);
     }
+    setScheduledDate(initialDate);
+    const parsed = parseYmd(initialDate);
+    if (parsed) {
+      setViewYear(parsed.year);
+      setViewMonth(parsed.month);
+    }
+    setCalendarOpen(false);
     setError(null);
     setSaving(false);
   }, [visible, editingTask, defaultValidDate]);
 
   const tomorrowStr = addDaysSimple(todayStr, 1);
 
+  const minParsed = useMemo(() => parseYmd(challengeStartDate), [challengeStartDate]);
+  const maxParsed = useMemo(() => parseYmd(challengeEndDate), [challengeEndDate]);
+
+  const canGoPrevMonth = minParsed
+    ? viewYear > minParsed.year || (viewYear === minParsed.year && viewMonth > minParsed.month)
+    : true;
+
+  const canGoNextMonth = maxParsed
+    ? viewYear < maxParsed.year || (viewYear === maxParsed.year && viewMonth < maxParsed.month)
+    : true;
+
+  const calendarCells = useMemo(() => {
+    const firstWeekday = new Date(viewYear, viewMonth, 1).getDay();
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const cells: Array<{ key: string; day: number | null; ymd: DateString | null }> = [];
+
+    for (let i = 0; i < firstWeekday; i++) {
+      cells.push({ key: "lead-" + i, day: null, ymd: null });
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const ymd = toYmd(viewYear, viewMonth, d);
+      cells.push({ key: "day-" + d, day: d, ymd });
+    }
+    while (cells.length % 7 !== 0) {
+      cells.push({ key: "trail-" + cells.length, day: null, ymd: null });
+    }
+    return cells;
+  }, [viewYear, viewMonth]);
+
+  function selectDate(ymd: DateString) {
+    setScheduledDate(ymd);
+    const parsed = parseYmd(ymd);
+    if (parsed) {
+      setViewYear(parsed.year);
+      setViewMonth(parsed.month);
+    }
+    if (error) {
+      setError(null);
+    }
+  }
+
+  function handlePrevMonth() {
+    if (!canGoPrevMonth) {
+      return;
+    }
+    if (viewMonth === 0) {
+      setViewYear((y) => y - 1);
+      setViewMonth(11);
+    } else {
+      setViewMonth((m) => m - 1);
+    }
+  }
+
+  function handleNextMonth() {
+    if (!canGoNextMonth) {
+      return;
+    }
+    if (viewMonth === 11) {
+      setViewYear((y) => y + 1);
+      setViewMonth(0);
+    } else {
+      setViewMonth((m) => m + 1);
+    }
+  }
+
+  function toggleCalendar() {
+    if (!calendarOpen) {
+      const parsed = parseYmd(scheduledDate);
+      if (parsed) {
+        setViewYear(parsed.year);
+        setViewMonth(parsed.month);
+      }
+    }
+    setCalendarOpen((prev) => !prev);
+  }
+
   async function handleSave() {
     const trimmed = title.trim();
     if (!trimmed) {
       setError("Task title is required.");
-      return;
-    }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(scheduledDate)) {
-      setError("Use YYYY-MM-DD date format.");
       return;
     }
     if (
@@ -186,7 +303,10 @@ export function TaskFormModal({
               {todayStr >= challengeStartDate &&
               todayStr <= challengeEndDate ? (
                 <Pressable
-                  onPress={() => setScheduledDate(todayStr)}
+                  onPress={() => {
+                    selectDate(todayStr);
+                    setCalendarOpen(false);
+                  }}
                   style={[
                     styles.quickChip,
                     scheduledDate === todayStr && styles.quickChipActive,
@@ -206,7 +326,10 @@ export function TaskFormModal({
               {tomorrowStr >= challengeStartDate &&
               tomorrowStr <= challengeEndDate ? (
                 <Pressable
-                  onPress={() => setScheduledDate(tomorrowStr)}
+                  onPress={() => {
+                    selectDate(tomorrowStr);
+                    setCalendarOpen(false);
+                  }}
                   style={[
                     styles.quickChip,
                     scheduledDate === tomorrowStr && styles.quickChipActive,
@@ -225,25 +348,118 @@ export function TaskFormModal({
               ) : null}
             </View>
 
-            <TextInput
-              value={scheduledDate}
-              onChangeText={(val) => {
-                setScheduledDate(val as DateString);
-                if (error) {
-                  setError(null);
-                }
-              }}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={colors.textMuted}
-              style={styles.input}
-              maxLength={10}
-              autoCapitalize="none"
-            />
+            <Pressable
+              onPress={toggleCalendar}
+              style={[
+                styles.dateSelectorButton,
+                calendarOpen && styles.dateSelectorButtonActive,
+              ]}
+            >
+              <View style={styles.dateSelectorLeft}>
+                <Ionicons
+                  name="calendar-outline"
+                  size={18}
+                  color={colors.primary}
+                />
+                <Text style={styles.dateSelectorText}>
+                  {formatDateWithWeekday(scheduledDate)}
+                </Text>
+              </View>
+              <Ionicons
+                name={calendarOpen ? "chevron-up" : "chevron-down"}
+                size={18}
+                color={colors.textSecondary}
+              />
+            </Pressable>
 
-            {/^\d{4}-\d{2}-\d{2}$/.test(scheduledDate) ? (
-              <Text style={styles.datePreview}>
-                {formatDateWithWeekday(scheduledDate)}
-              </Text>
+            {calendarOpen ? (
+              <View style={styles.calendarCard}>
+                <View style={styles.calendarHeader}>
+                  <Pressable
+                    onPress={handlePrevMonth}
+                    disabled={!canGoPrevMonth}
+                    hitSlop={8}
+                    style={[
+                      styles.monthNavBtn,
+                      !canGoPrevMonth && styles.monthNavBtnDisabled,
+                    ]}
+                  >
+                    <Ionicons
+                      name="chevron-back"
+                      size={18}
+                      color={colors.textPrimary}
+                    />
+                  </Pressable>
+
+                  <Text style={styles.monthTitle}>
+                    {MONTH_NAMES[viewMonth]} {viewYear}
+                  </Text>
+
+                  <Pressable
+                    onPress={handleNextMonth}
+                    disabled={!canGoNextMonth}
+                    hitSlop={8}
+                    style={[
+                      styles.monthNavBtn,
+                      !canGoNextMonth && styles.monthNavBtnDisabled,
+                    ]}
+                  >
+                    <Ionicons
+                      name="chevron-forward"
+                      size={18}
+                      color={colors.textPrimary}
+                    />
+                  </Pressable>
+                </View>
+
+                <View style={styles.weekdayRow}>
+                  {WEEKDAY_LABELS.map((wd) => (
+                    <Text key={wd} style={styles.weekdayText}>
+                      {wd}
+                    </Text>
+                  ))}
+                </View>
+
+                <View style={styles.daysGrid}>
+                  {calendarCells.map((cell) => {
+                    if (!cell.day || !cell.ymd) {
+                      return <View key={cell.key} style={styles.dayCell} />;
+                    }
+                    const ymd = cell.ymd;
+                    const isDisabled =
+                      ymd < challengeStartDate || ymd > challengeEndDate;
+                    const isSelected = ymd === scheduledDate;
+                    const isToday = ymd === todayStr;
+
+                    return (
+                      <Pressable
+                        key={cell.key}
+                        disabled={isDisabled}
+                        onPress={() => {
+                          selectDate(ymd);
+                          setCalendarOpen(false);
+                        }}
+                        style={[
+                          styles.dayCell,
+                          isToday && !isSelected && styles.dayCellToday,
+                          isSelected && styles.dayCellSelected,
+                          isDisabled && styles.dayCellDisabled,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.dayCellText,
+                            isToday && !isSelected && styles.dayCellTextToday,
+                            isSelected && styles.dayCellTextSelected,
+                          ]}
+                        >
+                          {cell.day}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
             ) : null}
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -269,7 +485,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.xl,
-    maxHeight: "88%",
+    maxHeight: "90%",
   },
   headerRow: {
     flexDirection: "row",
@@ -341,9 +557,101 @@ const styles = StyleSheet.create({
   quickChipTextActive: {
     color: colors.primary,
   },
-  datePreview: {
+  dateSelectorButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+  },
+  dateSelectorButtonActive: {
+    borderColor: colors.primaryBorder,
+  },
+  dateSelectorLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  dateSelectorText: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+  },
+  calendarCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  calendarHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  monthNavBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  monthNavBtnDisabled: {
+    opacity: 0.3,
+  },
+  monthTitle: {
+    ...typography.bodyMedium,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  weekdayRow: {
+    flexDirection: "row",
+  },
+  weekdayText: {
+    width: "14.285%",
+    textAlign: "center",
+    ...typography.micro,
+    color: colors.textMuted,
+  },
+  daysGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  dayCell: {
+    width: "14.285%",
+    height: 36,
+    borderRadius: radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dayCellToday: {
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  dayCellSelected: {
+    backgroundColor: colors.primary,
+  },
+  dayCellDisabled: {
+    opacity: 0.25,
+  },
+  dayCellText: {
     ...typography.caption,
+    fontWeight: "600",
+    color: colors.textPrimary,
+  },
+  dayCellTextToday: {
     color: colors.primary,
+  },
+  dayCellTextSelected: {
+    color: colors.background,
+    fontWeight: "700",
   },
   errorText: {
     ...typography.caption,

@@ -271,6 +271,7 @@ export function TasksScreen() {
             onToggle={handleToggleTask}
             onEdit={openEditModal}
             onDelete={handleRequestDelete}
+            onInstantDelete={handleInstantDelete}
           />
         )}
         ListEmptyComponent={

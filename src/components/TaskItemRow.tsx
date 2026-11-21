@@ -12,6 +12,7 @@ interface TaskItemRowProps {
   onToggle: (taskId: number, nextCompleted: boolean) => void;
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
+  onInstantDelete?: (taskId: number) => void;
 }
 
 function TaskItemRowBase({
@@ -21,6 +22,7 @@ function TaskItemRowBase({
   onToggle,
   onEdit,
   onDelete,
+  onInstantDelete,
 }: TaskItemRowProps) {
   const tomorrowStr = addDays(todayStr, 1);
   const isOverdue = !task.completed && task.scheduledDate < todayStr;
@@ -78,7 +80,7 @@ function TaskItemRowBase({
                 isToday && !task.completed && styles.dateBadgeTextToday,
               ]}
             >
-              {isOverdue ? `Overdue · ${dateLabel}` : dateLabel}
+              {isOverdue ? "Overdue \u00b7 " + dateLabel : dateLabel}
             </Text>
           </View>
           {weekNumber !== null ? (
@@ -88,11 +90,24 @@ function TaskItemRowBase({
       </Pressable>
 
       <Pressable
-        onPress={() => onDelete(task)}
+        onPress={() => {
+          if (task.completed && onInstantDelete) {
+            onInstantDelete(task.id);
+          } else {
+            onDelete(task);
+          }
+        }}
         hitSlop={10}
-        style={styles.deleteButton}
+        style={[
+          styles.deleteButton,
+          task.completed && styles.deleteButtonCompleted,
+        ]}
       >
-        <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
+        <Ionicons
+          name="trash-outline"
+          size={task.completed ? 15 : 18}
+          color={task.completed ? colors.danger : colors.textMuted}
+        />
       </Pressable>
     </View>
   );
@@ -112,7 +127,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   rowCompleted: {
-    opacity: 0.72,
+    opacity: 0.78,
     borderColor: colors.borderSubtle,
   },
   checkArea: {
@@ -181,5 +196,14 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     padding: 4,
+  },
+  deleteButtonCompleted: {
+    width: 28,
+    height: 28,
+    borderRadius: radius.sm,
+    backgroundColor: colors.dangerMuted,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 0,
   },
 });
