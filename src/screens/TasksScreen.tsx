@@ -9,6 +9,7 @@ import { ScreenContainer } from "../components/ScreenContainer";
 import { StatusBadge } from "../components/StatusBadge";
 import { TaskFormModal } from "../components/TaskFormModal";
 import { TaskItemRow } from "../components/TaskItemRow";
+import { UnfinishedRolloverBanner } from "../components/UnfinishedRolloverBanner";
 import { useAppData } from "../context/AppDataContext";
 import { colors, radius, spacing, typography } from "../theme/tokens";
 import { DateString, Task } from "../types";
@@ -35,6 +36,7 @@ export function TasksScreen() {
     editTask,
     toggleTask,
     removeTask,
+    unfinishedPastTasks,
   } = useAppData();
 
   const [filter, setFilter] = useState<TaskFilter>("today");
@@ -251,6 +253,7 @@ export function TasksScreen() {
 
       <FlatList
         data={filteredTasks}
+        ListHeaderComponent={filter === "today" && unfinishedPastTasks.length > 0 ? <UnfinishedRolloverBanner /> : undefined}
         keyExtractor={(item) => String(item.id)}
         showsVerticalScrollIndicator={false}
         removeClippedSubviews

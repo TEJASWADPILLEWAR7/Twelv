@@ -1,6 +1,8 @@
 import React, { useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Card } from "../components/Card";
+import { GoalPillarsCard } from "../components/GoalPillarsCard";
+import { WeeklyReviewCard } from "../components/WeeklyReviewCard";
 import { ProgressBar } from "../components/ProgressBar";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { StatusBadge } from "../components/StatusBadge";
@@ -162,6 +164,10 @@ export function ProgressScreen() {
         </View>
 
         <WeeklyPerformanceChart weeklySummaries={weeklySummaries} />
+
+        <GoalPillarsCard />
+
+        <WeeklyReviewCard />
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>12-Week Scorecard</Text>
