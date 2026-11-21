@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActiveWeekQuoteBanner } from "../components/ActiveWeekQuoteBanner";
 import { Card } from "../components/Card";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { EmptyState } from "../components/EmptyState";
@@ -175,6 +176,7 @@ export function TasksScreen() {
         </Pressable>
       </View>
 
+      <ActiveWeekQuoteBanner />
       <Card style={styles.statsCard}>
         <View style={styles.statsTopRow}>
           <View style={styles.statColumn}>

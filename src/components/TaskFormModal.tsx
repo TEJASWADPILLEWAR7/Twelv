@@ -11,7 +11,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useAppData } from "../context/AppDataContext";
 import { colors, radius, spacing, typography } from "../theme/tokens";
 import { DateString, Task } from "../types";
 import { formatDateWithWeekday } from "../utils/date";
@@ -40,7 +39,7 @@ function addDaysSimple(ymd: DateString, days: number): DateString {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}` as DateString;
+  return (y + "-" + m + "-" + day) as DateString;
 }
 
 export function TaskFormModal({
@@ -52,12 +51,9 @@ export function TaskFormModal({
   onSave,
   onClose,
 }: TaskFormModalProps) {
-  const { goals, taskGoalMap, setTaskGoal, setLatestTaskGoal } = useAppData();
-
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [scheduledDate, setScheduledDate] = useState<DateString>(todayStr);
-  const [selectedGoalId, setSelectedGoalId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -76,16 +72,14 @@ export function TaskFormModal({
       setTitle(editingTask.title);
       setDescription(editingTask.description ?? "");
       setScheduledDate(editingTask.scheduledDate);
-      setSelectedGoalId(taskGoalMap[editingTask.id] ?? null);
     } else {
       setTitle("");
       setDescription("");
       setScheduledDate(defaultValidDate);
-      setSelectedGoalId(null);
     }
     setError(null);
     setSaving(false);
-  }, [visible, editingTask, defaultValidDate, taskGoalMap]);
+  }, [visible, editingTask, defaultValidDate]);
 
   const tomorrowStr = addDaysSimple(todayStr, 1);
 
@@ -104,7 +98,7 @@ export function TaskFormModal({
       scheduledDate > challengeEndDate
     ) {
       setError(
-        `Date must be between ${challengeStartDate} and ${challengeEndDate}.`,
+        "Date must be between " + challengeStartDate + " and " + challengeEndDate + ".",
       );
       return;
     }
@@ -113,11 +107,6 @@ export function TaskFormModal({
     setError(null);
     try {
       await onSave(trimmed, description.trim(), scheduledDate);
-      if (editingTask) {
-        await setTaskGoal(editingTask.id, selectedGoalId);
-      } else if (selectedGoalId !== null) {
-        await setLatestTaskGoal(trimmed, scheduledDate, selectedGoalId);
-      }
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to save task.");
@@ -178,64 +167,6 @@ export function TaskFormModal({
               maxLength={100}
               autoFocus
             />
-
-            {goals.length > 0 ? (
-              <>
-                <Text style={styles.label}>GOAL PILLAR</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.goalChipsRow}
-                >
-                  <Pressable
-                    onPress={() => setSelectedGoalId(null)}
-                    style={[
-                      styles.goalChip,
-                      selectedGoalId === null && styles.goalChipActive,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.goalChipText,
-                        selectedGoalId === null && styles.goalChipTextActive,
-                      ]}
-                    >
-                      General
-                    </Text>
-                  </Pressable>
-
-                  {goals.map((goal) => {
-                    const active = selectedGoalId === goal.id;
-                    return (
-                      <Pressable
-                        key={goal.id}
-                        onPress={() => setSelectedGoalId(goal.id)}
-                        style={[
-                          styles.goalChip,
-                          active && styles.goalChipActive,
-                        ]}
-                      >
-                        <View
-                          style={[
-                            styles.goalDot,
-                            { backgroundColor: goal.color },
-                          ]}
-                        />
-                        <Text
-                          numberOfLines={1}
-                          style={[
-                            styles.goalChipText,
-                            active && styles.goalChipTextActive,
-                          ]}
-                        >
-                          {goal.title}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </>
-            ) : null}
 
             <Text style={styles.label}>NOTES (OPTIONAL)</Text>
             <TextInput
@@ -385,40 +316,6 @@ const styles = StyleSheet.create({
   },
   multilineInput: {
     minHeight: 74,
-  },
-  goalChipsRow: {
-    flexDirection: "row",
-    gap: spacing.xs,
-    paddingVertical: 2,
-  },
-  goalChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
-    borderRadius: radius.full,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    maxWidth: 180,
-  },
-  goalChipActive: {
-    backgroundColor: colors.primaryMuted,
-    borderColor: colors.primaryBorder,
-  },
-  goalDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  goalChipText: {
-    ...typography.caption,
-    fontWeight: "600",
-    color: colors.textSecondary,
-  },
-  goalChipTextActive: {
-    color: colors.primary,
   },
   quickDateRow: {
     flexDirection: "row",

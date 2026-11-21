@@ -1,0 +1,1095 @@
+{
+  "app": "Twelv",
+  "version": 1,
+  "exportedAt": "2026-11-21T10:00:00",
+  "challenge": {
+    "name": "12-Week Execution Test Cycle",
+    "start_date": "2026-11-02",
+    "end_date": "2027-01-24",
+    "created_at": "2026-11-02T07:00:00"
+  },
+  "tasks": [
+    {
+      "title": "Week 1 Execution Block #1",
+      "description": "",
+      "scheduled_date": "2026-11-02",
+      "completed": 1,
+      "completed_at": "2026-11-02T18:00:00",
+      "created_at": "2026-11-02T08:00:00",
+      "updated_at": "2026-11-02T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #2",
+      "description": "",
+      "scheduled_date": "2026-11-03",
+      "completed": 1,
+      "completed_at": "2026-11-03T18:00:00",
+      "created_at": "2026-11-03T08:00:00",
+      "updated_at": "2026-11-03T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #3",
+      "description": "",
+      "scheduled_date": "2026-11-04",
+      "completed": 1,
+      "completed_at": "2026-11-04T18:00:00",
+      "created_at": "2026-11-04T08:00:00",
+      "updated_at": "2026-11-04T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #4",
+      "description": "",
+      "scheduled_date": "2026-11-05",
+      "completed": 1,
+      "completed_at": "2026-11-05T18:00:00",
+      "created_at": "2026-11-05T08:00:00",
+      "updated_at": "2026-11-05T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #5",
+      "description": "",
+      "scheduled_date": "2026-11-06",
+      "completed": 1,
+      "completed_at": "2026-11-06T18:00:00",
+      "created_at": "2026-11-06T08:00:00",
+      "updated_at": "2026-11-06T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #6",
+      "description": "",
+      "scheduled_date": "2026-11-07",
+      "completed": 1,
+      "completed_at": "2026-11-07T18:00:00",
+      "created_at": "2026-11-07T08:00:00",
+      "updated_at": "2026-11-07T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #7",
+      "description": "",
+      "scheduled_date": "2026-11-08",
+      "completed": 1,
+      "completed_at": "2026-11-08T18:00:00",
+      "created_at": "2026-11-08T08:00:00",
+      "updated_at": "2026-11-08T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #8",
+      "description": "",
+      "scheduled_date": "2026-11-02",
+      "completed": 1,
+      "completed_at": "2026-11-02T18:00:00",
+      "created_at": "2026-11-02T08:00:00",
+      "updated_at": "2026-11-02T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #9",
+      "description": "",
+      "scheduled_date": "2026-11-03",
+      "completed": 1,
+      "completed_at": "2026-11-03T18:00:00",
+      "created_at": "2026-11-03T08:00:00",
+      "updated_at": "2026-11-03T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #10",
+      "description": "",
+      "scheduled_date": "2026-11-04",
+      "completed": 1,
+      "completed_at": "2026-11-04T18:00:00",
+      "created_at": "2026-11-04T08:00:00",
+      "updated_at": "2026-11-04T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #11",
+      "description": "",
+      "scheduled_date": "2026-11-05",
+      "completed": 1,
+      "completed_at": "2026-11-05T18:00:00",
+      "created_at": "2026-11-05T08:00:00",
+      "updated_at": "2026-11-05T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #12",
+      "description": "",
+      "scheduled_date": "2026-11-06",
+      "completed": 1,
+      "completed_at": "2026-11-06T18:00:00",
+      "created_at": "2026-11-06T08:00:00",
+      "updated_at": "2026-11-06T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #13",
+      "description": "",
+      "scheduled_date": "2026-11-07",
+      "completed": 1,
+      "completed_at": "2026-11-07T18:00:00",
+      "created_at": "2026-11-07T08:00:00",
+      "updated_at": "2026-11-07T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #14",
+      "description": "",
+      "scheduled_date": "2026-11-08",
+      "completed": 1,
+      "completed_at": "2026-11-08T18:00:00",
+      "created_at": "2026-11-08T08:00:00",
+      "updated_at": "2026-11-08T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #15",
+      "description": "",
+      "scheduled_date": "2026-11-02",
+      "completed": 1,
+      "completed_at": "2026-11-02T18:00:00",
+      "created_at": "2026-11-02T08:00:00",
+      "updated_at": "2026-11-02T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #16",
+      "description": "",
+      "scheduled_date": "2026-11-03",
+      "completed": 1,
+      "completed_at": "2026-11-03T18:00:00",
+      "created_at": "2026-11-03T08:00:00",
+      "updated_at": "2026-11-03T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #17",
+      "description": "",
+      "scheduled_date": "2026-11-04",
+      "completed": 1,
+      "completed_at": "2026-11-04T18:00:00",
+      "created_at": "2026-11-04T08:00:00",
+      "updated_at": "2026-11-04T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #18",
+      "description": "",
+      "scheduled_date": "2026-11-05",
+      "completed": 1,
+      "completed_at": "2026-11-05T18:00:00",
+      "created_at": "2026-11-05T08:00:00",
+      "updated_at": "2026-11-05T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #19",
+      "description": "",
+      "scheduled_date": "2026-11-06",
+      "completed": 1,
+      "completed_at": "2026-11-06T18:00:00",
+      "created_at": "2026-11-06T08:00:00",
+      "updated_at": "2026-11-06T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #20",
+      "description": "",
+      "scheduled_date": "2026-11-07",
+      "completed": 1,
+      "completed_at": "2026-11-07T18:00:00",
+      "created_at": "2026-11-07T08:00:00",
+      "updated_at": "2026-11-07T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #21",
+      "description": "",
+      "scheduled_date": "2026-11-08",
+      "completed": 1,
+      "completed_at": "2026-11-08T18:00:00",
+      "created_at": "2026-11-08T08:00:00",
+      "updated_at": "2026-11-08T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #22",
+      "description": "",
+      "scheduled_date": "2026-11-02",
+      "completed": 1,
+      "completed_at": "2026-11-02T18:00:00",
+      "created_at": "2026-11-02T08:00:00",
+      "updated_at": "2026-11-02T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #23",
+      "description": "",
+      "scheduled_date": "2026-11-03",
+      "completed": 1,
+      "completed_at": "2026-11-03T18:00:00",
+      "created_at": "2026-11-03T08:00:00",
+      "updated_at": "2026-11-03T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #24",
+      "description": "",
+      "scheduled_date": "2026-11-04",
+      "completed": 1,
+      "completed_at": "2026-11-04T18:00:00",
+      "created_at": "2026-11-04T08:00:00",
+      "updated_at": "2026-11-04T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #25",
+      "description": "",
+      "scheduled_date": "2026-11-05",
+      "completed": 1,
+      "completed_at": "2026-11-05T18:00:00",
+      "created_at": "2026-11-05T08:00:00",
+      "updated_at": "2026-11-05T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #26",
+      "description": "",
+      "scheduled_date": "2026-11-06",
+      "completed": 1,
+      "completed_at": "2026-11-06T18:00:00",
+      "created_at": "2026-11-06T08:00:00",
+      "updated_at": "2026-11-06T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #27",
+      "description": "",
+      "scheduled_date": "2026-11-07",
+      "completed": 1,
+      "completed_at": "2026-11-07T18:00:00",
+      "created_at": "2026-11-07T08:00:00",
+      "updated_at": "2026-11-07T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #28",
+      "description": "",
+      "scheduled_date": "2026-11-08",
+      "completed": 1,
+      "completed_at": "2026-11-08T18:00:00",
+      "created_at": "2026-11-08T08:00:00",
+      "updated_at": "2026-11-08T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #29",
+      "description": "",
+      "scheduled_date": "2026-11-02",
+      "completed": 1,
+      "completed_at": "2026-11-02T18:00:00",
+      "created_at": "2026-11-02T08:00:00",
+      "updated_at": "2026-11-02T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #30",
+      "description": "",
+      "scheduled_date": "2026-11-03",
+      "completed": 1,
+      "completed_at": "2026-11-03T18:00:00",
+      "created_at": "2026-11-03T08:00:00",
+      "updated_at": "2026-11-03T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #31",
+      "description": "",
+      "scheduled_date": "2026-11-04",
+      "completed": 1,
+      "completed_at": "2026-11-04T18:00:00",
+      "created_at": "2026-11-04T08:00:00",
+      "updated_at": "2026-11-04T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #32",
+      "description": "",
+      "scheduled_date": "2026-11-05",
+      "completed": 1,
+      "completed_at": "2026-11-05T18:00:00",
+      "created_at": "2026-11-05T08:00:00",
+      "updated_at": "2026-11-05T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #33",
+      "description": "",
+      "scheduled_date": "2026-11-06",
+      "completed": 1,
+      "completed_at": "2026-11-06T18:00:00",
+      "created_at": "2026-11-06T08:00:00",
+      "updated_at": "2026-11-06T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #34",
+      "description": "",
+      "scheduled_date": "2026-11-07",
+      "completed": 1,
+      "completed_at": "2026-11-07T18:00:00",
+      "created_at": "2026-11-07T08:00:00",
+      "updated_at": "2026-11-07T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #35",
+      "description": "",
+      "scheduled_date": "2026-11-08",
+      "completed": 1,
+      "completed_at": "2026-11-08T18:00:00",
+      "created_at": "2026-11-08T08:00:00",
+      "updated_at": "2026-11-08T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #36",
+      "description": "",
+      "scheduled_date": "2026-11-02",
+      "completed": 1,
+      "completed_at": "2026-11-02T18:00:00",
+      "created_at": "2026-11-02T08:00:00",
+      "updated_at": "2026-11-02T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #37",
+      "description": "",
+      "scheduled_date": "2026-11-03",
+      "completed": 1,
+      "completed_at": "2026-11-03T18:00:00",
+      "created_at": "2026-11-03T08:00:00",
+      "updated_at": "2026-11-03T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #38",
+      "description": "",
+      "scheduled_date": "2026-11-04",
+      "completed": 1,
+      "completed_at": "2026-11-04T18:00:00",
+      "created_at": "2026-11-04T08:00:00",
+      "updated_at": "2026-11-04T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #39",
+      "description": "",
+      "scheduled_date": "2026-11-05",
+      "completed": 1,
+      "completed_at": "2026-11-05T18:00:00",
+      "created_at": "2026-11-05T08:00:00",
+      "updated_at": "2026-11-05T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #40",
+      "description": "",
+      "scheduled_date": "2026-11-06",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-06T08:00:00",
+      "updated_at": "2026-11-06T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #41",
+      "description": "",
+      "scheduled_date": "2026-11-07",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-07T08:00:00",
+      "updated_at": "2026-11-07T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #42",
+      "description": "",
+      "scheduled_date": "2026-11-08",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-08T08:00:00",
+      "updated_at": "2026-11-08T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #43",
+      "description": "",
+      "scheduled_date": "2026-11-02",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-02T08:00:00",
+      "updated_at": "2026-11-02T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #44",
+      "description": "",
+      "scheduled_date": "2026-11-03",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-03T08:00:00",
+      "updated_at": "2026-11-03T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #45",
+      "description": "",
+      "scheduled_date": "2026-11-04",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-04T08:00:00",
+      "updated_at": "2026-11-04T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #46",
+      "description": "",
+      "scheduled_date": "2026-11-05",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-05T08:00:00",
+      "updated_at": "2026-11-05T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #47",
+      "description": "",
+      "scheduled_date": "2026-11-06",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-06T08:00:00",
+      "updated_at": "2026-11-06T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #48",
+      "description": "",
+      "scheduled_date": "2026-11-07",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-07T08:00:00",
+      "updated_at": "2026-11-07T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #49",
+      "description": "",
+      "scheduled_date": "2026-11-08",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-08T08:00:00",
+      "updated_at": "2026-11-08T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #50",
+      "description": "",
+      "scheduled_date": "2026-11-02",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-02T08:00:00",
+      "updated_at": "2026-11-02T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #51",
+      "description": "",
+      "scheduled_date": "2026-11-03",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-03T08:00:00",
+      "updated_at": "2026-11-03T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #52",
+      "description": "",
+      "scheduled_date": "2026-11-04",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-04T08:00:00",
+      "updated_at": "2026-11-04T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #53",
+      "description": "",
+      "scheduled_date": "2026-11-05",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-05T08:00:00",
+      "updated_at": "2026-11-05T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #54",
+      "description": "",
+      "scheduled_date": "2026-11-06",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-06T08:00:00",
+      "updated_at": "2026-11-06T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #55",
+      "description": "",
+      "scheduled_date": "2026-11-07",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-07T08:00:00",
+      "updated_at": "2026-11-07T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #56",
+      "description": "",
+      "scheduled_date": "2026-11-08",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-08T08:00:00",
+      "updated_at": "2026-11-08T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #57",
+      "description": "",
+      "scheduled_date": "2026-11-02",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-02T08:00:00",
+      "updated_at": "2026-11-02T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #58",
+      "description": "",
+      "scheduled_date": "2026-11-03",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-03T08:00:00",
+      "updated_at": "2026-11-03T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #59",
+      "description": "",
+      "scheduled_date": "2026-11-04",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-04T08:00:00",
+      "updated_at": "2026-11-04T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #60",
+      "description": "",
+      "scheduled_date": "2026-11-05",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-05T08:00:00",
+      "updated_at": "2026-11-05T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #61",
+      "description": "",
+      "scheduled_date": "2026-11-06",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-06T08:00:00",
+      "updated_at": "2026-11-06T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #62",
+      "description": "",
+      "scheduled_date": "2026-11-07",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-07T08:00:00",
+      "updated_at": "2026-11-07T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #63",
+      "description": "",
+      "scheduled_date": "2026-11-08",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-08T08:00:00",
+      "updated_at": "2026-11-08T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #64",
+      "description": "",
+      "scheduled_date": "2026-11-02",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-02T08:00:00",
+      "updated_at": "2026-11-02T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #65",
+      "description": "",
+      "scheduled_date": "2026-11-03",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-03T08:00:00",
+      "updated_at": "2026-11-03T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #66",
+      "description": "",
+      "scheduled_date": "2026-11-04",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-04T08:00:00",
+      "updated_at": "2026-11-04T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #67",
+      "description": "",
+      "scheduled_date": "2026-11-05",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-05T08:00:00",
+      "updated_at": "2026-11-05T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #68",
+      "description": "",
+      "scheduled_date": "2026-11-06",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-06T08:00:00",
+      "updated_at": "2026-11-06T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #69",
+      "description": "",
+      "scheduled_date": "2026-11-07",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-07T08:00:00",
+      "updated_at": "2026-11-07T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #70",
+      "description": "",
+      "scheduled_date": "2026-11-08",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-08T08:00:00",
+      "updated_at": "2026-11-08T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #71",
+      "description": "",
+      "scheduled_date": "2026-11-02",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-02T08:00:00",
+      "updated_at": "2026-11-02T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #72",
+      "description": "",
+      "scheduled_date": "2026-11-03",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-03T08:00:00",
+      "updated_at": "2026-11-03T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #73",
+      "description": "",
+      "scheduled_date": "2026-11-04",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-04T08:00:00",
+      "updated_at": "2026-11-04T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #74",
+      "description": "",
+      "scheduled_date": "2026-11-05",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-05T08:00:00",
+      "updated_at": "2026-11-05T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #75",
+      "description": "",
+      "scheduled_date": "2026-11-06",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-06T08:00:00",
+      "updated_at": "2026-11-06T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #76",
+      "description": "",
+      "scheduled_date": "2026-11-07",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-07T08:00:00",
+      "updated_at": "2026-11-07T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #77",
+      "description": "",
+      "scheduled_date": "2026-11-08",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-08T08:00:00",
+      "updated_at": "2026-11-08T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #78",
+      "description": "",
+      "scheduled_date": "2026-11-02",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-02T08:00:00",
+      "updated_at": "2026-11-02T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #79",
+      "description": "",
+      "scheduled_date": "2026-11-03",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-03T08:00:00",
+      "updated_at": "2026-11-03T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #80",
+      "description": "",
+      "scheduled_date": "2026-11-04",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-04T08:00:00",
+      "updated_at": "2026-11-04T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #81",
+      "description": "",
+      "scheduled_date": "2026-11-05",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-05T08:00:00",
+      "updated_at": "2026-11-05T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #82",
+      "description": "",
+      "scheduled_date": "2026-11-06",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-06T08:00:00",
+      "updated_at": "2026-11-06T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #83",
+      "description": "",
+      "scheduled_date": "2026-11-07",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-07T08:00:00",
+      "updated_at": "2026-11-07T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #84",
+      "description": "",
+      "scheduled_date": "2026-11-08",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-08T08:00:00",
+      "updated_at": "2026-11-08T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #85",
+      "description": "",
+      "scheduled_date": "2026-11-02",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-02T08:00:00",
+      "updated_at": "2026-11-02T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #86",
+      "description": "",
+      "scheduled_date": "2026-11-03",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-03T08:00:00",
+      "updated_at": "2026-11-03T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #87",
+      "description": "",
+      "scheduled_date": "2026-11-04",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-04T08:00:00",
+      "updated_at": "2026-11-04T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #88",
+      "description": "",
+      "scheduled_date": "2026-11-05",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-05T08:00:00",
+      "updated_at": "2026-11-05T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #89",
+      "description": "",
+      "scheduled_date": "2026-11-06",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-06T08:00:00",
+      "updated_at": "2026-11-06T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #90",
+      "description": "",
+      "scheduled_date": "2026-11-07",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-07T08:00:00",
+      "updated_at": "2026-11-07T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #91",
+      "description": "",
+      "scheduled_date": "2026-11-08",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-08T08:00:00",
+      "updated_at": "2026-11-08T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #92",
+      "description": "",
+      "scheduled_date": "2026-11-02",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-02T08:00:00",
+      "updated_at": "2026-11-02T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #93",
+      "description": "",
+      "scheduled_date": "2026-11-03",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-03T08:00:00",
+      "updated_at": "2026-11-03T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #94",
+      "description": "",
+      "scheduled_date": "2026-11-04",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-04T08:00:00",
+      "updated_at": "2026-11-04T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #95",
+      "description": "",
+      "scheduled_date": "2026-11-05",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-05T08:00:00",
+      "updated_at": "2026-11-05T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #96",
+      "description": "",
+      "scheduled_date": "2026-11-06",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-06T08:00:00",
+      "updated_at": "2026-11-06T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #97",
+      "description": "",
+      "scheduled_date": "2026-11-07",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-07T08:00:00",
+      "updated_at": "2026-11-07T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #98",
+      "description": "",
+      "scheduled_date": "2026-11-08",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-08T08:00:00",
+      "updated_at": "2026-11-08T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #99",
+      "description": "",
+      "scheduled_date": "2026-11-02",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-02T08:00:00",
+      "updated_at": "2026-11-02T18:00:00"
+    },
+    {
+      "title": "Week 1 Execution Block #100",
+      "description": "",
+      "scheduled_date": "2026-11-03",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-03T08:00:00",
+      "updated_at": "2026-11-03T18:00:00"
+    },
+    {
+      "title": "Week 2 Priority Sprint #1",
+      "description": "",
+      "scheduled_date": "2026-11-09",
+      "completed": 1,
+      "completed_at": "2026-11-09T18:00:00",
+      "created_at": "2026-11-09T08:00:00",
+      "updated_at": "2026-11-09T18:00:00"
+    },
+    {
+      "title": "Week 2 Priority Sprint #2",
+      "description": "",
+      "scheduled_date": "2026-11-10",
+      "completed": 1,
+      "completed_at": "2026-11-10T18:00:00",
+      "created_at": "2026-11-10T08:00:00",
+      "updated_at": "2026-11-10T18:00:00"
+    },
+    {
+      "title": "Week 2 Priority Sprint #3",
+      "description": "",
+      "scheduled_date": "2026-11-11",
+      "completed": 1,
+      "completed_at": "2026-11-11T18:00:00",
+      "created_at": "2026-11-11T08:00:00",
+      "updated_at": "2026-11-11T18:00:00"
+    },
+    {
+      "title": "Week 2 Priority Sprint #4",
+      "description": "",
+      "scheduled_date": "2026-11-12",
+      "completed": 1,
+      "completed_at": "2026-11-12T18:00:00",
+      "created_at": "2026-11-12T08:00:00",
+      "updated_at": "2026-11-12T18:00:00"
+    },
+    {
+      "title": "Week 2 Priority Sprint #5",
+      "description": "",
+      "scheduled_date": "2026-11-13",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-13T08:00:00",
+      "updated_at": "2026-11-13T18:00:00"
+    },
+    {
+      "title": "Week 2 Priority Sprint #6",
+      "description": "",
+      "scheduled_date": "2026-11-14",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-14T08:00:00",
+      "updated_at": "2026-11-14T18:00:00"
+    },
+    {
+      "title": "Week 2 Priority Sprint #7",
+      "description": "",
+      "scheduled_date": "2026-11-15",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-15T08:00:00",
+      "updated_at": "2026-11-15T18:00:00"
+    },
+    {
+      "title": "Week 2 Priority Sprint #8",
+      "description": "",
+      "scheduled_date": "2026-11-09",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-09T08:00:00",
+      "updated_at": "2026-11-09T18:00:00"
+    },
+    {
+      "title": "Week 2 Priority Sprint #9",
+      "description": "",
+      "scheduled_date": "2026-11-10",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-10T08:00:00",
+      "updated_at": "2026-11-10T18:00:00"
+    },
+    {
+      "title": "Week 2 Priority Sprint #10",
+      "description": "",
+      "scheduled_date": "2026-11-11",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-11T08:00:00",
+      "updated_at": "2026-11-11T18:00:00"
+    },
+    {
+      "title": "Review Week 1 & 2 Scorecards",
+      "description": "Verify 39%/0% in Week 1 and 40%/10% in Week 2",
+      "scheduled_date": "2026-11-21",
+      "completed": 0,
+      "completed_at": null,
+      "created_at": "2026-11-21T08:00:00",
+      "updated_at": "2026-11-21T08:00:00"
+    }
+  ],
+  "habits": [
+    {
+      "old_id": 1,
+      "title": "Morning Deep Work (60 min)",
+      "active": 1,
+      "created_at": "2026-11-02T07:00:00"
+    },
+    {
+      "old_id": 2,
+      "title": "Evening Shutdown & Plan",
+      "active": 1,
+      "created_at": "2026-11-02T07:00:00"
+    }
+  ],
+  "schedules": [
+    {
+      "old_habit_id": 1,
+      "weekday": 1
+    },
+    {
+      "old_habit_id": 1,
+      "weekday": 2
+    },
+    {
+      "old_habit_id": 1,
+      "weekday": 3
+    },
+    {
+      "old_habit_id": 1,
+      "weekday": 4
+    },
+    {
+      "old_habit_id": 1,
+      "weekday": 5
+    },
+    {
+      "old_habit_id": 2,
+      "weekday": 1
+    },
+    {
+      "old_habit_id": 2,
+      "weekday": 2
+    },
+    {
+      "old_habit_id": 2,
+      "weekday": 3
+    },
+    {
+      "old_habit_id": 2,
+      "weekday": 4
+    },
+    {
+      "old_habit_id": 2,
+      "weekday": 5
+    }
+  ],
+  "logs": [
+    {
+      "old_habit_id": 1,
+      "log_date": "2026-11-09",
+      "created_at": "2026-11-09T09:00:00"
+    }
+  ],
+  "weekly_quotes": [
+    {
+      "week_number": 1,
+      "quote_text": "Start where you are. Use what you have. Do what you can.",
+      "author": "Arthur Ashe",
+      "updated_at": "2026-11-02T07:00:00"
+    },
+    {
+      "week_number": 2,
+      "quote_text": "Small daily improvements over time lead to stunning results.",
+      "author": "Robin Sharma",
+      "updated_at": "2026-11-09T07:00:00"
+    },
+    {
+      "week_number": 3,
+      "quote_text": "Discipline is choosing between what you want now and what you want most.",
+      "author": "Abraham Lincoln",
+      "updated_at": "2026-11-16T07:00:00"
+    }
+  ]
+}

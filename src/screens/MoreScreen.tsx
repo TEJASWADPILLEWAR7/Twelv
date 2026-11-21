@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { BackupRestoreCard } from "../components/BackupRestoreCard";
+import { WeeklyQuoteManagerCard } from "../components/WeeklyQuoteManagerCard";
 import { Card } from "../components/Card";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -176,6 +177,7 @@ export function MoreScreen() {
           })}
         </Card>
 
+        <WeeklyQuoteManagerCard />
         <BackupRestoreCard />
 
 

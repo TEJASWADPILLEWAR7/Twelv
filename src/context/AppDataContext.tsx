@@ -10,20 +10,11 @@ import React, {
 import { AppState } from "react-native";
 import { getDatabase } from "../database/client";
 import {
-  assignLatestMatchingTaskGoal,
-  CycleGoal,
-  fetchGoalsForChallenge,
-  fetchHabitGoalMap,
-  fetchTaskGoalMap,
-  fetchWeeklyReviewsForChallenge,
-  NewCycleGoalInput,
-  replaceGoalsForChallenge,
+  fetchWeeklyQuotesForChallenge,
   rolloverTasksToDateRecord,
   runExtensionMigrations,
-  updateHabitGoalRecord,
-  updateTaskGoalRecord,
-  upsertWeeklyReviewRecord,
-  WeeklyReview,
+  upsertWeeklyQuoteRecord,
+  WeeklyQuote,
 } from "../database/extensions";
 import { runMigrations } from "../database/migrations";
 import {
@@ -70,7 +61,7 @@ import {
   syncAndroidWidgets,
 } from "../utils/widgetSync";
 
-export type { CycleGoal, NewCycleGoalInput, WeeklyReview };
+export type { WeeklyQuote };
 
 interface AppDataContextValue {
   isReady: boolean;
@@ -78,32 +69,18 @@ interface AppDataContextValue {
   todayStr: DateString;
   challenge: Challenge | null;
   activeWeekNumber: number | null;
-  goals: CycleGoal[];
-  taskGoalMap: Record<number, number | null>;
-  habitGoalMap: Record<number, number | null>;
   tasks: Task[];
   unfinishedPastTasks: Task[];
   habits: Habit[];
   schedules: HabitSchedule[];
   logs: HabitLog[];
   weeklySummaries: WeeklySummary[];
-  weeklyReviews: WeeklyReview[];
+  weeklyQuotes: WeeklyQuote[];
   refreshAll: () => Promise<void>;
-  createChallenge: (
-    name: string,
-    startDate: DateString,
-    initialGoals?: NewCycleGoalInput[],
-  ) => Promise<void>;
-  saveCycleGoals: (nextGoals: NewCycleGoalInput[]) => Promise<void>;
+  createChallenge: (name: string, startDate: DateString) => Promise<void>;
   resetChallenge: () => Promise<void>;
   addTask: (input: NewTaskInput) => Promise<void>;
   editTask: (taskId: number, input: UpdateTaskInput) => Promise<void>;
-  setTaskGoal: (taskId: number, goalId: number | null) => Promise<void>;
-  setLatestTaskGoal: (
-    title: string,
-    scheduledDate: DateString,
-    goalId: number | null,
-  ) => Promise<void>;
   toggleTask: (taskId: number, nextCompleted: boolean) => Promise<void>;
   removeTask: (taskId: number) => Promise<void>;
   rolloverUnfinishedTasks: (taskIds?: number[]) => Promise<number>;
@@ -113,17 +90,16 @@ interface AppDataContextValue {
     title: string,
     daysOfWeek: Weekday[],
   ) => Promise<void>;
-  setHabitGoal: (habitId: number, goalId: number | null) => Promise<void>;
   removeHabit: (habit: Habit) => Promise<void>;
   toggleHabitLog: (
     habitId: number,
     logDate: DateString,
     nextCompleted: boolean,
   ) => Promise<void>;
-  saveWeeklyReview: (
+  saveWeeklyQuote: (
     weekNumber: number,
-    winNote: string,
-    adjustmentNote: string,
+    quoteText: string,
+    author?: string,
   ) => Promise<void>;
   exportBackup: () => Promise<void>;
   importBackup: () => Promise<boolean>;
@@ -138,18 +114,11 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     getTodayDateString(),
   );
   const [challenge, setChallenge] = useState<Challenge | null>(null);
-  const [goals, setGoals] = useState<CycleGoal[]>([]);
-  const [taskGoalMap, setTaskGoalMap] = useState<Record<number, number | null>>(
-    {},
-  );
-  const [habitGoalMap, setHabitGoalMap] = useState<
-    Record<number, number | null>
-  >({});
   const [tasks, setTasks] = useState<Task[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);
   const [schedules, setSchedules] = useState<HabitSchedule[]>([]);
   const [logs, setLogs] = useState<HabitLog[]>([]);
-  const [weeklyReviews, setWeeklyReviews] = useState<WeeklyReview[]>([]);
+  const [weeklyQuotes, setWeeklyQuotes] = useState<WeeklyQuote[]>([]);
   const appStateRef = useRef<string>(AppState.currentState ?? "active");
 
   const applyWidgetTogglesToDb = useCallback(async () => {
@@ -172,41 +141,25 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     setTodayStr(getTodayDateString());
 
     if (!active) {
-      setGoals([]);
-      setTaskGoalMap({});
-      setHabitGoalMap({});
       setTasks([]);
       setHabits([]);
       setSchedules([]);
       setLogs([]);
-      setWeeklyReviews([]);
+      setWeeklyQuotes([]);
       return;
     }
 
-    const [
-      loadedTasks,
-      habitBundle,
-      loadedGoals,
-      loadedTaskGoals,
-      loadedHabitGoals,
-      loadedReviews,
-    ] = await Promise.all([
+    const [loadedTasks, habitBundle, loadedQuotes] = await Promise.all([
       fetchTasksForChallenge(active.id),
       fetchHabitsData(active.id),
-      fetchGoalsForChallenge(db, active.id),
-      fetchTaskGoalMap(db, active.id),
-      fetchHabitGoalMap(db, active.id),
-      fetchWeeklyReviewsForChallenge(db, active.id),
+      fetchWeeklyQuotesForChallenge(db, active.id),
     ]);
 
     setTasks(loadedTasks);
     setHabits(habitBundle.habits);
     setSchedules(habitBundle.schedules);
     setLogs(habitBundle.logs);
-    setGoals(loadedGoals);
-    setTaskGoalMap(loadedTaskGoals);
-    setHabitGoalMap(loadedHabitGoals);
-    setWeeklyReviews(loadedReviews);
+    setWeeklyQuotes(loadedQuotes);
   }, [applyWidgetTogglesToDb]);
 
   useEffect(() => {
@@ -266,32 +219,11 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   }, [loadSnapshot]);
 
   const createChallenge = useCallback(
-    async (
-      name: string,
-      startDate: DateString,
-      initialGoals?: NewCycleGoalInput[],
-    ) => {
+    async (name: string, startDate: DateString) => {
       await createChallengeRecord(name, startDate);
-      const active = await fetchActiveChallenge();
-      if (active && initialGoals && initialGoals.length > 0) {
-        const db = await getDatabase();
-        await replaceGoalsForChallenge(db, active.id, initialGoals);
-      }
       await loadSnapshot();
     },
     [loadSnapshot],
-  );
-
-  const saveCycleGoals = useCallback(
-    async (nextGoals: NewCycleGoalInput[]) => {
-      if (!challenge) {
-        return;
-      }
-      const db = await getDatabase();
-      await replaceGoalsForChallenge(db, challenge.id, nextGoals);
-      await loadSnapshot();
-    },
-    [challenge, loadSnapshot],
   );
 
   const resetChallenge = useCallback(async () => {
@@ -316,33 +248,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       await loadSnapshot();
     },
     [loadSnapshot],
-  );
-
-  const setTaskGoal = useCallback(
-    async (taskId: number, goalId: number | null) => {
-      const db = await getDatabase();
-      await updateTaskGoalRecord(db, taskId, goalId);
-      setTaskGoalMap((prev) => ({ ...prev, [taskId]: goalId }));
-    },
-    [],
-  );
-
-  const setLatestTaskGoal = useCallback(
-    async (title: string, scheduledDate: DateString, goalId: number | null) => {
-      if (!challenge) {
-        return;
-      }
-      const db = await getDatabase();
-      await assignLatestMatchingTaskGoal(
-        db,
-        challenge.id,
-        title,
-        scheduledDate,
-        goalId,
-      );
-      await loadSnapshot();
-    },
-    [challenge, loadSnapshot],
   );
 
   const toggleTask = useCallback(
@@ -437,15 +342,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     [challenge, loadSnapshot],
   );
 
-  const setHabitGoal = useCallback(
-    async (habitId: number, goalId: number | null) => {
-      const db = await getDatabase();
-      await updateHabitGoalRecord(db, habitId, goalId);
-      setHabitGoalMap((prev) => ({ ...prev, [habitId]: goalId }));
-    },
-    [],
-  );
-
   const removeHabit = useCallback(
     async (habit: Habit) => {
       await deleteHabitRecord(habit);
@@ -488,18 +384,18 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     [loadSnapshot],
   );
 
-  const saveWeeklyReview = useCallback(
-    async (weekNumber: number, winNote: string, adjustmentNote: string) => {
+  const saveWeeklyQuote = useCallback(
+    async (weekNumber: number, quoteText: string, author = "") => {
       if (!challenge) {
         return;
       }
       const db = await getDatabase();
-      await upsertWeeklyReviewRecord(
+      await upsertWeeklyQuoteRecord(
         db,
         challenge.id,
         weekNumber,
-        winNote,
-        adjustmentNote,
+        quoteText,
+        author,
       );
       await loadSnapshot();
     },
@@ -563,33 +459,26 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       todayStr,
       challenge,
       activeWeekNumber,
-      goals,
-      taskGoalMap,
-      habitGoalMap,
       tasks,
       unfinishedPastTasks,
       habits,
       schedules,
       logs,
       weeklySummaries,
-      weeklyReviews,
+      weeklyQuotes,
       refreshAll,
       createChallenge,
-      saveCycleGoals,
       resetChallenge,
       addTask,
       editTask,
-      setTaskGoal,
-      setLatestTaskGoal,
       toggleTask,
       removeTask,
       rolloverUnfinishedTasks,
       addHabit,
       editHabit,
-      setHabitGoal,
       removeHabit,
       toggleHabitLog,
-      saveWeeklyReview,
+      saveWeeklyQuote,
       exportBackup,
       importBackup,
     }),
@@ -599,33 +488,26 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       todayStr,
       challenge,
       activeWeekNumber,
-      goals,
-      taskGoalMap,
-      habitGoalMap,
       tasks,
       unfinishedPastTasks,
       habits,
       schedules,
       logs,
       weeklySummaries,
-      weeklyReviews,
+      weeklyQuotes,
       refreshAll,
       createChallenge,
-      saveCycleGoals,
       resetChallenge,
       addTask,
       editTask,
-      setTaskGoal,
-      setLatestTaskGoal,
       toggleTask,
       removeTask,
       rolloverUnfinishedTasks,
       addHabit,
       editHabit,
-      setHabitGoal,
       removeHabit,
       toggleHabitLog,
-      saveWeeklyReview,
+      saveWeeklyQuote,
       exportBackup,
       importBackup,
     ],
