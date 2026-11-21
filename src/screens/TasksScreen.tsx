@@ -129,6 +129,13 @@ export function TasksScreen() {
     setDeletingTask(task);
   }, []);
 
+  const handleInstantDelete = useCallback(
+    (taskId: number) => {
+      void removeTask(taskId);
+    },
+    [removeTask],
+  );
+
   if (!challenge) {
     return null;
   }
