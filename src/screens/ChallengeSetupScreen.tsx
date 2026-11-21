@@ -323,7 +323,7 @@ export function ChallengeSetupScreen() {
                   color={colors.primary}
                 />
                 <Text style={styles.windowText}>
-                  84-day cycle: {formatDateWithWeekday(startDate)} ->{" "}
+                  84-day cycle: {formatDateWithWeekday(startDate)} {"\u2192"} 
                   {formatDateWithWeekday(endDatePreview)}
                 </Text>
               </View>
