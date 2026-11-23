@@ -18,9 +18,12 @@ import { DateString, Task } from "../types";
 import { formatDateWithWeekday } from "../utils/date";
 import { formatTime12h, from24Hour, to24Hour } from "../utils/time";
 
+type ScrollViewRef = React.ComponentRef<typeof ScrollView>;
+
 interface TaskFormModalProps {
   visible: boolean;
   editingTask: Task | null;
+  existingTasks?: Task[];
   challengeStartDate: DateString;
   challengeEndDate: DateString;
   todayStr: DateString;
@@ -108,6 +111,7 @@ function nearestMinuteIndex(minute: number): number {
 export function TaskFormModal({
   visible,
   editingTask,
+  existingTasks,
   challengeStartDate,
   challengeEndDate,
   todayStr,
@@ -129,7 +133,6 @@ export function TaskFormModal({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  type ScrollViewRef = React.ComponentRef<typeof ScrollView>;
   const hourWheelRef = useRef<ScrollViewRef | null>(null);
   const minuteWheelRef = useRef<ScrollViewRef | null>(null);
   const periodWheelRef = useRef<ScrollViewRef | null>(null);
@@ -236,6 +239,19 @@ export function TaskFormModal({
     () => formatTime12h(scheduledTime),
     [scheduledTime],
   );
+
+  const conflictingTasks = useMemo(() => {
+    if (!scheduledTime || !existingTasks || existingTasks.length === 0) {
+      return [];
+    }
+    return existingTasks.filter(
+      (t) =>
+        !t.completed &&
+        t.scheduledDate === scheduledDate &&
+        t.scheduledTime === scheduledTime &&
+        (!editingTask || t.id !== editingTask.id),
+    );
+  }, [scheduledTime, scheduledDate, existingTasks, editingTask]);
 
   function selectDate(ymd: DateString) {
     setScheduledDate(ymd);
@@ -632,6 +648,21 @@ export function TaskFormModal({
               </View>
             </Pressable>
 
+            {conflictingTasks.length > 0 && formattedSelectedTime ? (
+              <View style={styles.conflictBanner}>
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={15}
+                  color={colors.primary}
+                />
+                <Text style={styles.conflictText} numberOfLines={2}>
+                  {conflictingTasks.length === 1
+                    ? "Same time as \"" + conflictingTasks[0].title + "\" (" + formattedSelectedTime + ")"
+                    : "Same time as \"" + conflictingTasks[0].title + "\" +" + (conflictingTasks.length - 1) + " more"}
+                </Text>
+              </View>
+            ) : null}
+
             {timePickerOpen ? (
               <View style={styles.timeWheelCard}>
                 <View style={styles.digitalHeader}>
@@ -990,6 +1021,23 @@ const styles = StyleSheet.create({
   },
   mutedSelectorText: {
     color: colors.textSecondary,
+  },
+  conflictBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.primaryMuted,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 8,
+  },
+  conflictText: {
+    flex: 1,
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: "600",
   },
   calendarCard: {
     backgroundColor: colors.surfaceElevated,
