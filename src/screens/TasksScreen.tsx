@@ -16,14 +16,22 @@ import { colors, radius, spacing, typography } from "../theme/tokens";
 import { DateString, Task } from "../types";
 import { formatDateWithWeekday, getWeekNumberForDate } from "../utils/date";
 import { buildCategoryScore, TARGET_PERCENTAGE } from "../utils/scoring";
+import { compareTasksByTimeOnDay } from "../utils/time";
 
 type TaskFilter = "today" | "pending" | "upcoming" | "completed";
+type TaskSort = "time" | "newest" | "alpha";
 
 const FILTER_TABS: Array<{ key: TaskFilter; label: string }> = [
   { key: "today", label: "Today" },
   { key: "pending", label: "Pending" },
   { key: "upcoming", label: "Upcoming" },
   { key: "completed", label: "Completed" },
+];
+
+const SORT_OPTIONS: Array<{ key: TaskSort; label: string }> = [
+  { key: "time", label: "Time" },
+  { key: "newest", label: "Newest" },
+  { key: "alpha", label: "A–Z" },
 ];
 
 export function TasksScreen() {
@@ -41,6 +49,7 @@ export function TasksScreen() {
   } = useAppData();
 
   const [filter, setFilter] = useState<TaskFilter>("today");
+  const [sortBy, setSortBy] = useState<TaskSort>("time");
   const [formVisible, setFormVisible] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
@@ -64,37 +73,63 @@ export function TasksScreen() {
     return weeklySummaries[weeklySummaries.length - 1];
   }, [weeklySummaries, activeWeekNumber, challenge, todayStr]);
 
+  const sortTasksList = useCallback(
+    (items: Task[], activeFilter: TaskFilter): Task[] => {
+      const copy = [...items];
+      if (sortBy === "alpha") {
+        return copy.sort(
+          (a, b) =>
+            a.title.localeCompare(b.title, undefined, { sensitivity: "base" }) ||
+            compareTasksByTimeOnDay(a, b),
+        );
+      }
+      if (sortBy === "newest") {
+        return copy.sort((a, b) => b.id - a.id);
+      }
+      if (activeFilter === "completed") {
+        return copy.sort(
+          (a, b) =>
+            (b.completedAt ?? b.scheduledDate).localeCompare(
+              a.completedAt ?? a.scheduledDate,
+            ) || compareTasksByTimeOnDay(a, b),
+        );
+      }
+      if (activeFilter === "today") {
+        return copy.sort(compareTasksByTimeOnDay);
+      }
+      return copy.sort(
+        (a, b) =>
+          a.scheduledDate.localeCompare(b.scheduledDate) ||
+          compareTasksByTimeOnDay(a, b),
+      );
+    },
+    [sortBy],
+  );
+
   const filteredTasks = useMemo(() => {
     if (filter === "today") {
-      return tasks
-        .filter((t) => !t.completed && t.scheduledDate === todayStr)
-        .sort((a, b) => b.id - a.id);
+      return sortTasksList(
+        tasks.filter((t) => !t.completed && t.scheduledDate === todayStr),
+        "today",
+      );
     }
     if (filter === "pending") {
-      return tasks
-        .filter((t) => !t.completed)
-        .sort(
-          (a, b) =>
-            a.scheduledDate.localeCompare(b.scheduledDate) || b.id - a.id,
-        );
+      return sortTasksList(
+        tasks.filter((t) => !t.completed),
+        "pending",
+      );
     }
     if (filter === "upcoming") {
-      return tasks
-        .filter((t) => !t.completed && t.scheduledDate > todayStr)
-        .sort(
-          (a, b) =>
-            a.scheduledDate.localeCompare(b.scheduledDate) || b.id - a.id,
-        );
-    }
-    return tasks
-      .filter((t) => t.completed)
-      .sort(
-        (a, b) =>
-          (b.completedAt ?? b.scheduledDate).localeCompare(
-            a.completedAt ?? a.scheduledDate,
-          ) || b.id - a.id,
+      return sortTasksList(
+        tasks.filter((t) => !t.completed && t.scheduledDate > todayStr),
+        "upcoming",
       );
-  }, [tasks, filter, todayStr]);
+    }
+    return sortTasksList(
+      tasks.filter((t) => t.completed),
+      "completed",
+    );
+  }, [tasks, filter, todayStr, sortTasksList]);
 
   const filterCounts = useMemo(
     () => ({
@@ -144,11 +179,22 @@ export function TasksScreen() {
     title: string,
     description: string,
     scheduledDate: DateString,
+    scheduledTime: string | null,
   ) {
     if (editingTask) {
-      await editTask(editingTask.id, { title, description, scheduledDate });
+      await editTask(editingTask.id, {
+        title,
+        description,
+        scheduledDate,
+        scheduledTime,
+      });
     } else {
-      await addTask({ title, description, scheduledDate });
+      await addTask({
+        title,
+        description,
+        scheduledDate,
+        scheduledTime,
+      });
     }
   }
 
@@ -173,7 +219,7 @@ export function TasksScreen() {
           <Text numberOfLines={1} style={styles.dateSubtitle}>
             {formatDateWithWeekday(todayStr)}
             {activeWeekNumber !== null
-              ? ` · Week ${activeWeekNumber} of 12`
+              ? " \u00b7 Week " + activeWeekNumber + " of 12"
               : ""}
           </Text>
         </View>
@@ -199,12 +245,12 @@ export function TasksScreen() {
           <View style={styles.statColumn}>
             <Text style={styles.statLabel}>
               {currentWeekSummary
-                ? `WEEK ${currentWeekSummary.weekNumber}`
+                ? "WEEK " + currentWeekSummary.weekNumber
                 : "WEEK"}
             </Text>
             <Text numberOfLines={1} style={styles.statPrimary}>
               {weekTaskScore
-                ? `${weekTaskScore.completed}/${weekTaskScore.total}`
+                ? weekTaskScore.completed + "/" + weekTaskScore.total
                 : "0/0"}
               <Text style={[styles.statPct, weekMet && styles.statPctSuccess]}>
                 {" "}
@@ -216,7 +262,7 @@ export function TasksScreen() {
           <StatusBadge
             label={
               (weekTaskScore?.total ?? 0) === 0
-                ? `${TARGET_PERCENTAGE}% Goal`
+                ? TARGET_PERCENTAGE + "% Goal"
                 : weekMet
                   ? "85%+ Hit"
                   : "Below 85%"
@@ -260,9 +306,41 @@ export function TasksScreen() {
         })}
       </View>
 
+      <View style={styles.sortBar}>
+        <View style={styles.sortLabelGroup}>
+          <Ionicons name="swap-vertical-outline" size={13} color={colors.textMuted} />
+          <Text style={styles.sortLabelText}>Sort</Text>
+        </View>
+        <View style={styles.sortChipsGroup}>
+          {SORT_OPTIONS.map((option) => {
+            const active = sortBy === option.key;
+            return (
+              <Pressable
+                key={option.key}
+                onPress={() => setSortBy(option.key)}
+                style={[styles.sortChip, active && styles.sortChipActive]}
+              >
+                <Text
+                  style={[
+                    styles.sortChipText,
+                    active && styles.sortChipTextActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
       <FlatList
         data={filteredTasks}
-        ListHeaderComponent={filter === "today" && unfinishedPastTasks.length > 0 ? <UnfinishedRolloverBanner /> : undefined}
+        ListHeaderComponent={
+          filter === "today" && unfinishedPastTasks.length > 0 ? (
+            <UnfinishedRolloverBanner />
+          ) : undefined
+        }
         keyExtractor={(item) => String(item.id)}
         showsVerticalScrollIndicator={false}
         removeClippedSubviews
@@ -323,7 +401,7 @@ export function TasksScreen() {
         title="Delete Task?"
         message={
           deletingTask
-            ? `Remove "${deletingTask.title}"? This will also update that week's task completion total.`
+            ? 'Remove "' + deletingTask.title + '"? This will also update that week\'s task completion total.'
             : ""
         }
         confirmLabel="Delete"
@@ -407,7 +485,7 @@ const styles = StyleSheet.create({
   filterBar: {
     flexDirection: "row",
     gap: 6,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   filterPill: {
     flex: 1,
@@ -428,6 +506,44 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   filterTextActive: {
+    color: colors.primary,
+  },
+  sortBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.md,
+  },
+  sortLabelGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  sortLabelText: {
+    ...typography.micro,
+    color: colors.textMuted,
+  },
+  sortChipsGroup: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  sortChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  sortChipActive: {
+    backgroundColor: colors.primaryMuted,
+    borderColor: colors.primaryBorder,
+  },
+  sortChipText: {
+    ...typography.micro,
+    color: colors.textSecondary,
+  },
+  sortChipTextActive: {
     color: colors.primary,
   },
   listContent: {

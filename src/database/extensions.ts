@@ -29,6 +29,11 @@ export async function runExtensionMigrations(
       FOREIGN KEY (challenge_id) REFERENCES challenges(id) ON DELETE CASCADE
     );
   `);
+
+  const taskCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(tasks);");
+  if (!taskCols.some((col) => col.name === "scheduled_time")) {
+    await db.execAsync("ALTER TABLE tasks ADD COLUMN scheduled_time TEXT DEFAULT NULL;");
+  }
 }
 
 export async function rolloverTasksToDateRecord(

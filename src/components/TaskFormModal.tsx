@@ -14,6 +14,7 @@ import {
 import { colors, radius, spacing, typography } from "../theme/tokens";
 import { DateString, Task } from "../types";
 import { formatDateWithWeekday } from "../utils/date";
+import { formatTime12h, from24Hour, to24Hour } from "../utils/time";
 
 interface TaskFormModalProps {
   visible: boolean;
@@ -25,6 +26,7 @@ interface TaskFormModalProps {
     title: string,
     description: string,
     scheduledDate: DateString,
+    scheduledTime: string | null,
   ) => Promise<void>;
   onClose: () => void;
 }
@@ -45,6 +47,14 @@ const MONTH_NAMES = [
 ];
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const HOURS_12 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const MINUTES_STEP = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+const TIME_PRESETS: Array<{ label: string; value: string }> = [
+  { label: "9:00 AM", value: "09:00" },
+  { label: "12:00 PM", value: "12:00" },
+  { label: "3:00 PM", value: "15:00" },
+  { label: "6:00 PM", value: "18:00" },
+];
 
 function parseYmd(ymd: DateString): { year: number; month: number; day: number } | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
@@ -86,7 +96,9 @@ export function TaskFormModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [scheduledDate, setScheduledDate] = useState<DateString>(todayStr);
+  const [scheduledTime, setScheduledTime] = useState<string | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [timePickerOpen, setTimePickerOpen] = useState(false);
   const [viewYear, setViewYear] = useState<number>(() => {
     return parseYmd(todayStr)?.year ?? new Date().getFullYear();
   });
@@ -111,9 +123,11 @@ export function TaskFormModal({
     if (editingTask) {
       setTitle(editingTask.title);
       setDescription(editingTask.description ?? "");
+      setScheduledTime(editingTask.scheduledTime ?? null);
     } else {
       setTitle("");
       setDescription("");
+      setScheduledTime(null);
     }
     setScheduledDate(initialDate);
     const parsed = parseYmd(initialDate);
@@ -122,6 +136,7 @@ export function TaskFormModal({
       setViewMonth(parsed.month);
     }
     setCalendarOpen(false);
+    setTimePickerOpen(false);
     setError(null);
     setSaving(false);
   }, [visible, editingTask, defaultValidDate]);
@@ -156,6 +171,12 @@ export function TaskFormModal({
     }
     return cells;
   }, [viewYear, viewMonth]);
+
+  const activeTimeParts = useMemo(() => from24Hour(scheduledTime), [scheduledTime]);
+  const formattedSelectedTime = useMemo(
+    () => formatTime12h(scheduledTime),
+    [scheduledTime],
+  );
 
   function selectDate(ymd: DateString) {
     setScheduledDate(ymd);
@@ -200,8 +221,19 @@ export function TaskFormModal({
         setViewYear(parsed.year);
         setViewMonth(parsed.month);
       }
+      setTimePickerOpen(false);
     }
     setCalendarOpen((prev) => !prev);
+  }
+
+  function toggleTimePicker() {
+    if (!timePickerOpen) {
+      if (!scheduledTime) {
+        setScheduledTime("09:00");
+      }
+      setCalendarOpen(false);
+    }
+    setTimePickerOpen((prev) => !prev);
   }
 
   async function handleSave() {
@@ -223,7 +255,7 @@ export function TaskFormModal({
     setSaving(true);
     setError(null);
     try {
-      await onSave(trimmed, description.trim(), scheduledDate);
+      await onSave(trimmed, description.trim(), scheduledDate, scheduledTime);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to save task.");
@@ -462,6 +494,170 @@ export function TaskFormModal({
               </View>
             ) : null}
 
+            <Text style={styles.label}>TIME (OPTIONAL)</Text>
+            <View style={styles.timeSelectorRow}>
+              <Pressable
+                onPress={toggleTimePicker}
+                style={[
+                  styles.dateSelectorButton,
+                  styles.timeSelectorFlex,
+                  timePickerOpen && styles.dateSelectorButtonActive,
+                ]}
+              >
+                <View style={styles.dateSelectorLeft}>
+                  <Ionicons
+                    name="time-outline"
+                    size={18}
+                    color={formattedSelectedTime ? colors.primary : colors.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.dateSelectorText,
+                      !formattedSelectedTime && styles.mutedSelectorText,
+                    ]}
+                  >
+                    {formattedSelectedTime ?? "Anytime (No specific time)"}
+                  </Text>
+                </View>
+                <Ionicons
+                  name={timePickerOpen ? "chevron-up" : "chevron-down"}
+                  size={18}
+                  color={colors.textSecondary}
+                />
+              </Pressable>
+
+              {scheduledTime ? (
+                <Pressable
+                  onPress={() => {
+                    setScheduledTime(null);
+                    setTimePickerOpen(false);
+                  }}
+                  hitSlop={6}
+                  style={styles.clearTimeBtn}
+                >
+                  <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+                </Pressable>
+              ) : null}
+            </View>
+
+            {timePickerOpen ? (
+              <View style={styles.calendarCard}>
+                <View style={styles.presetRow}>
+                  {TIME_PRESETS.map((preset) => {
+                    const active = scheduledTime === preset.value;
+                    return (
+                      <Pressable
+                        key={preset.value}
+                        onPress={() => setScheduledTime(preset.value)}
+                        style={[
+                          styles.presetChip,
+                          active && styles.quickChipActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.presetChipText,
+                            active && styles.quickChipTextActive,
+                          ]}
+                        >
+                          {preset.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <Text style={styles.subPickerLabel}>HOUR</Text>
+                <View style={styles.chipWrap}>
+                  {HOURS_12.map((h) => {
+                    const active = activeTimeParts.hour12 === h;
+                    return (
+                      <Pressable
+                        key={h}
+                        onPress={() =>
+                          setScheduledTime(
+                            to24Hour(h, activeTimeParts.minute, activeTimeParts.period),
+                          )
+                        }
+                        style={[
+                          styles.timeGridChip,
+                          active && styles.timeGridChipActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.timeGridChipText,
+                            active && styles.timeGridChipTextActive,
+                          ]}
+                        >
+                          {h}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <Text style={styles.subPickerLabel}>MINUTE</Text>
+                <View style={styles.chipWrap}>
+                  {MINUTES_STEP.map((m) => {
+                    const active = activeTimeParts.minute === m;
+                    return (
+                      <Pressable
+                        key={m}
+                        onPress={() =>
+                          setScheduledTime(
+                            to24Hour(activeTimeParts.hour12, m, activeTimeParts.period),
+                          )
+                        }
+                        style={[
+                          styles.timeGridChip,
+                          active && styles.timeGridChipActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.timeGridChipText,
+                            active && styles.timeGridChipTextActive,
+                          ]}
+                        >
+                          :{String(m).padStart(2, "0")}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <View style={styles.periodRow}>
+                  {(["AM", "PM"] as const).map((p) => {
+                    const active = activeTimeParts.period === p;
+                    return (
+                      <Pressable
+                        key={p}
+                        onPress={() =>
+                          setScheduledTime(
+                            to24Hour(activeTimeParts.hour12, activeTimeParts.minute, p),
+                          )
+                        }
+                        style={[
+                          styles.periodBtn,
+                          active && styles.timeGridChipActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.periodBtnText,
+                            active && styles.timeGridChipTextActive,
+                          ]}
+                        >
+                          {p}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
+
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </ScrollView>
         </View>
@@ -485,7 +681,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.xl,
-    maxHeight: "90%",
+    maxHeight: "92%",
   },
   headerRow: {
     flexDirection: "row",
@@ -531,7 +727,7 @@ const styles = StyleSheet.create({
     ...typography.body,
   },
   multilineInput: {
-    minHeight: 74,
+    minHeight: 68,
   },
   quickDateRow: {
     flexDirection: "row",
@@ -557,6 +753,24 @@ const styles = StyleSheet.create({
   quickChipTextActive: {
     color: colors.primary,
   },
+  timeSelectorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  timeSelectorFlex: {
+    flex: 1,
+  },
+  clearTimeBtn: {
+    width: 42,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   dateSelectorButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -579,6 +793,9 @@ const styles = StyleSheet.create({
   dateSelectorText: {
     ...typography.bodyMedium,
     color: colors.textPrimary,
+  },
+  mutedSelectorText: {
+    color: colors.textSecondary,
   },
   calendarCard: {
     backgroundColor: colors.surfaceElevated,
@@ -652,6 +869,73 @@ const styles = StyleSheet.create({
   dayCellTextSelected: {
     color: colors.background,
     fontWeight: "700",
+  },
+  presetRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  presetChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  presetChipText: {
+    ...typography.micro,
+    color: colors.textSecondary,
+  },
+  subPickerLabel: {
+    ...typography.micro,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  chipWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  timeGridChip: {
+    width: "14.6%",
+    paddingVertical: 7,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    alignItems: "center",
+  },
+  timeGridChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  timeGridChipText: {
+    ...typography.micro,
+    color: colors.textPrimary,
+  },
+  timeGridChipTextActive: {
+    color: colors.background,
+    fontWeight: "700",
+  },
+  periodRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: 2,
+  },
+  periodBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    alignItems: "center",
+  },
+  periodBtnText: {
+    ...typography.caption,
+    fontWeight: "700",
+    color: colors.textPrimary,
   },
   errorText: {
     ...typography.caption,

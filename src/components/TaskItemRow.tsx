@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radius, spacing, typography } from "../theme/tokens";
 import { DateString, Task } from "../types";
 import { addDays, formatDateWithWeekday } from "../utils/date";
+import { formatTime12h } from "../utils/time";
 
 interface TaskItemRowProps {
   task: Task;
@@ -27,6 +28,7 @@ function TaskItemRowBase({
   const tomorrowStr = addDays(todayStr, 1);
   const isOverdue = !task.completed && task.scheduledDate < todayStr;
   const isToday = task.scheduledDate === todayStr;
+  const formattedTime = formatTime12h(task.scheduledTime);
 
   let dateLabel = formatDateWithWeekday(task.scheduledDate);
   if (isToday) {
@@ -83,6 +85,14 @@ function TaskItemRowBase({
               {isOverdue ? "Overdue \u00b7 " + dateLabel : dateLabel}
             </Text>
           </View>
+
+          {formattedTime ? (
+            <View style={styles.timeBadge}>
+              <Ionicons name="time-outline" size={11} color={colors.primary} />
+              <Text style={styles.timeBadgeText}>{formattedTime}</Text>
+            </View>
+          ) : null}
+
           {weekNumber !== null ? (
             <Text style={styles.weekTag}>W{weekNumber}</Text>
           ) : null}
@@ -165,7 +175,8 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
+    flexWrap: "wrap",
+    gap: 6,
     marginTop: 2,
   },
   dateBadge: {
@@ -189,6 +200,21 @@ const styles = StyleSheet.create({
   },
   dateBadgeTextOverdue: {
     color: colors.danger,
+  },
+  timeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  timeBadgeText: {
+    ...typography.micro,
+    color: colors.primary,
   },
   weekTag: {
     ...typography.micro,

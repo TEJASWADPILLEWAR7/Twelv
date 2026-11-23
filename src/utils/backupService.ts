@@ -18,6 +18,7 @@ export interface TwelvBackupPayload {
     title: string;
     description: string | null;
     scheduled_date: string;
+    scheduled_time?: string | null;
     completed: number;
     completed_at: string | null;
     created_at: string;
@@ -78,12 +79,13 @@ export async function buildBackupJson(db: SQLiteDatabase): Promise<string> {
     title: string;
     description: string | null;
     scheduled_date: string;
+    scheduled_time: string | null;
     completed: number;
     completed_at: string | null;
     created_at: string;
     updated_at: string;
   }>(
-    `SELECT title, description, scheduled_date, completed, completed_at, created_at, updated_at
+    `SELECT title, description, scheduled_date, scheduled_time, completed, completed_at, created_at, updated_at
      FROM tasks WHERE challenge_id = ? ORDER BY id ASC;`,
     [challenge.id],
   );
@@ -176,6 +178,7 @@ export async function buildBackupJson(db: SQLiteDatabase): Promise<string> {
       title: t.title,
       description: t.description ?? null,
       scheduled_date: t.scheduled_date,
+      scheduled_time: t.scheduled_time ?? null,
       completed: t.completed,
       completed_at: t.completed_at ?? null,
       created_at: t.created_at,
@@ -290,14 +293,15 @@ export async function restoreBackupPayload(
     for (const t of payload.tasks ?? []) {
       await db.runAsync(
         `INSERT INTO tasks (
-           challenge_id, title, description, scheduled_date,
+           challenge_id, title, description, scheduled_date, scheduled_time,
            completed, completed_at, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           newChallengeId,
           t.title,
           t.description ?? "",
           t.scheduled_date,
+          t.scheduled_time ?? null,
           t.completed ? 1 : 0,
           t.completed_at ?? null,
           t.created_at || getNowIsoLocal(),

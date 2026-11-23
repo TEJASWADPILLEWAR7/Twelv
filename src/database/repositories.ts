@@ -33,6 +33,7 @@ interface TaskRow {
   title: string;
   description: string | null;
   scheduled_date: string;
+  scheduled_time: string | null;
   completed: number;
   completed_at: string | null;
   created_at: string;
@@ -78,6 +79,7 @@ function mapTask(row: TaskRow): Task {
     title: row.title,
     description: row.description,
     scheduledDate: row.scheduled_date,
+    scheduledTime: row.scheduled_time ?? null,
     completed: row.completed === 1,
     completedAt: row.completed_at,
     createdAt: row.created_at,
@@ -163,7 +165,7 @@ export async function fetchTasksForChallenge(
 ): Promise<Task[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<TaskRow>(
-    "SELECT id, challenge_id, title, description, scheduled_date, completed, completed_at, created_at, updated_at FROM tasks WHERE challenge_id = ? ORDER BY scheduled_date ASC, completed ASC, id DESC;",
+    "SELECT id, challenge_id, title, description, scheduled_date, scheduled_time, completed, completed_at, created_at, updated_at FROM tasks WHERE challenge_id = ? ORDER BY scheduled_date ASC, completed ASC, CASE WHEN scheduled_time IS NULL THEN 1 ELSE 0 END ASC, scheduled_time ASC, id DESC;",
     challengeId,
   );
   return rows.map(mapTask);
@@ -179,13 +181,17 @@ export async function createTaskRecord(
   const trimmedDescription = input.description?.trim()
     ? input.description.trim()
     : null;
+  const trimmedTime = input.scheduledTime?.trim()
+    ? input.scheduledTime.trim()
+    : null;
 
   await db.runAsync(
-    "INSERT INTO tasks (challenge_id, title, description, scheduled_date, completed, completed_at, created_at, updated_at) VALUES (?, ?, ?, ?, 0, NULL, ?, ?);",
+    "INSERT INTO tasks (challenge_id, title, description, scheduled_date, scheduled_time, completed, completed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?);",
     challengeId,
     trimmedTitle,
     trimmedDescription,
     input.scheduledDate,
+    trimmedTime,
     now,
     now,
   );
@@ -201,12 +207,16 @@ export async function updateTaskRecord(
   const trimmedDescription = input.description?.trim()
     ? input.description.trim()
     : null;
+  const trimmedTime = input.scheduledTime?.trim()
+    ? input.scheduledTime.trim()
+    : null;
 
   await db.runAsync(
-    "UPDATE tasks SET title = ?, description = ?, scheduled_date = ?, updated_at = ? WHERE id = ?;",
+    "UPDATE tasks SET title = ?, description = ?, scheduled_date = ?, scheduled_time = ?, updated_at = ? WHERE id = ?;",
     trimmedTitle,
     trimmedDescription,
     input.scheduledDate,
+    trimmedTime,
     now,
     taskId,
   );

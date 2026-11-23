@@ -16,6 +16,7 @@ export interface Task {
   title: string;
   description: string | null;
   scheduledDate: DateString;
+  scheduledTime: string | null;
   completed: boolean;
   completedAt: string | null;
   createdAt: string;
@@ -72,12 +73,14 @@ export interface NewTaskInput {
   title: string;
   description?: string;
   scheduledDate: DateString;
+  scheduledTime?: string | null;
 }
 
 export interface UpdateTaskInput {
   title: string;
   description?: string;
   scheduledDate: DateString;
+  scheduledTime?: string | null;
 }
 
 export interface NewHabitInput {
