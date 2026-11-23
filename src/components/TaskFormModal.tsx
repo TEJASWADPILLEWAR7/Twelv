@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Platform,
   Pressable,
   ScrollView,
@@ -49,14 +51,26 @@ const MONTH_NAMES = [
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HOURS_12 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 const MINUTES_STEP = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
-const TIME_PRESETS: Array<{ label: string; value: string }> = [
+const PERIODS: Array<"AM" | "PM"> = ["AM", "PM"];
+const WHEEL_ITEM_HEIGHT = 40;
+const WHEEL_HEIGHT = WHEEL_ITEM_HEIGHT * 3;
+
+const QUICK_TIME_SLOTS: Array<{ label: string; value: string }> = [
+  { label: "7:00 AM", value: "07:00" },
+  { label: "8:30 AM", value: "08:30" },
   { label: "9:00 AM", value: "09:00" },
+  { label: "10:30 AM", value: "10:30" },
   { label: "12:00 PM", value: "12:00" },
-  { label: "3:00 PM", value: "15:00" },
+  { label: "2:00 PM", value: "14:00" },
+  { label: "4:00 PM", value: "16:00" },
   { label: "6:00 PM", value: "18:00" },
+  { label: "8:00 PM", value: "20:00" },
+  { label: "9:30 PM", value: "21:30" },
 ];
 
-function parseYmd(ymd: DateString): { year: number; month: number; day: number } | null {
+function parseYmd(
+  ymd: DateString,
+): { year: number; month: number; day: number } | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
   if (!match) {
     return null;
@@ -84,6 +98,13 @@ function addDaysSimple(ymd: DateString, days: number): DateString {
   return toYmd(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
+function nearestMinuteIndex(minute: number): number {
+  const snapped = Math.round(minute / 5) * 5;
+  const normalized = snapped >= 60 ? 55 : snapped;
+  const idx = MINUTES_STEP.indexOf(normalized);
+  return idx >= 0 ? idx : 0;
+}
+
 export function TaskFormModal({
   visible,
   editingTask,
@@ -108,12 +129,40 @@ export function TaskFormModal({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  type ScrollViewRef = React.ComponentRef<typeof ScrollView>;
+  const hourWheelRef = useRef<ScrollViewRef | null>(null);
+  const minuteWheelRef = useRef<ScrollViewRef | null>(null);
+  const periodWheelRef = useRef<ScrollViewRef | null>(null);
+
   const defaultValidDate =
     todayStr < challengeStartDate
       ? challengeStartDate
       : todayStr > challengeEndDate
         ? challengeEndDate
         : todayStr;
+
+  const syncWheelsToTime = useCallback(
+    (time24: string | null, animated: boolean) => {
+      const parts = from24Hour(time24);
+      const hIdx = Math.max(0, HOURS_12.indexOf(parts.hour12));
+      const mIdx = nearestMinuteIndex(parts.minute);
+      const pIdx = parts.period === "PM" ? 1 : 0;
+
+      hourWheelRef.current?.scrollTo({
+        y: hIdx * WHEEL_ITEM_HEIGHT,
+        animated,
+      });
+      minuteWheelRef.current?.scrollTo({
+        y: mIdx * WHEEL_ITEM_HEIGHT,
+        animated,
+      });
+      periodWheelRef.current?.scrollTo({
+        y: pIdx * WHEEL_ITEM_HEIGHT,
+        animated,
+      });
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!visible) {
@@ -140,6 +189,16 @@ export function TaskFormModal({
     setError(null);
     setSaving(false);
   }, [visible, editingTask, defaultValidDate]);
+
+  useEffect(() => {
+    if (!timePickerOpen) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      syncWheelsToTime(scheduledTime ?? "09:00", false);
+    }, 25);
+    return () => clearTimeout(timer);
+  }, [timePickerOpen]);
 
   const tomorrowStr = addDaysSimple(todayStr, 1);
 
@@ -234,6 +293,32 @@ export function TaskFormModal({
       setCalendarOpen(false);
     }
     setTimePickerOpen((prev) => !prev);
+  }
+
+  function applyExactTime(nextTime24: string, animated = true) {
+    setScheduledTime(nextTime24);
+    syncWheelsToTime(nextTime24, animated);
+  }
+
+  function handleHourWheelSettle(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    const y = e.nativeEvent.contentOffset.y;
+    const idx = Math.max(0, Math.min(HOURS_12.length - 1, Math.round(y / WHEEL_ITEM_HEIGHT)));
+    const pickedHour = HOURS_12[idx];
+    setScheduledTime(to24Hour(pickedHour, activeTimeParts.minute, activeTimeParts.period));
+  }
+
+  function handleMinuteWheelSettle(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    const y = e.nativeEvent.contentOffset.y;
+    const idx = Math.max(0, Math.min(MINUTES_STEP.length - 1, Math.round(y / WHEEL_ITEM_HEIGHT)));
+    const pickedMinute = MINUTES_STEP[idx];
+    setScheduledTime(to24Hour(activeTimeParts.hour12, pickedMinute, activeTimeParts.period));
+  }
+
+  function handlePeriodWheelSettle(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    const y = e.nativeEvent.contentOffset.y;
+    const idx = Math.max(0, Math.min(PERIODS.length - 1, Math.round(y / WHEEL_ITEM_HEIGHT)));
+    const pickedPeriod = PERIODS[idx];
+    setScheduledTime(to24Hour(activeTimeParts.hour12, activeTimeParts.minute, pickedPeriod));
   }
 
   async function handleSave() {
@@ -494,166 +579,259 @@ export function TaskFormModal({
               </View>
             ) : null}
 
-            <Text style={styles.label}>TIME (OPTIONAL)</Text>
-            <View style={styles.timeSelectorRow}>
-              <Pressable
-                onPress={toggleTimePicker}
-                style={[
-                  styles.dateSelectorButton,
-                  styles.timeSelectorFlex,
-                  timePickerOpen && styles.dateSelectorButtonActive,
-                ]}
-              >
-                <View style={styles.dateSelectorLeft}>
-                  <Ionicons
-                    name="time-outline"
-                    size={18}
-                    color={formattedSelectedTime ? colors.primary : colors.textMuted}
-                  />
-                  <Text
-                    style={[
-                      styles.dateSelectorText,
-                      !formattedSelectedTime && styles.mutedSelectorText,
-                    ]}
-                  >
-                    {formattedSelectedTime ?? "Anytime (No specific time)"}
-                  </Text>
-                </View>
-                <Ionicons
-                  name={timePickerOpen ? "chevron-up" : "chevron-down"}
-                  size={18}
-                  color={colors.textSecondary}
-                />
-              </Pressable>
-
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.label}>TIME ALLOCATION</Text>
               {scheduledTime ? (
                 <Pressable
                   onPress={() => {
                     setScheduledTime(null);
                     setTimePickerOpen(false);
                   }}
-                  hitSlop={6}
-                  style={styles.clearTimeBtn}
+                  hitSlop={8}
+                  style={styles.anytimeResetPill}
                 >
-                  <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+                  <Ionicons name="close" size={12} color={colors.textSecondary} />
+                  <Text style={styles.anytimeResetText}>Anytime</Text>
                 </Pressable>
               ) : null}
             </View>
 
+            <Pressable
+              onPress={toggleTimePicker}
+              style={[
+                styles.dateSelectorButton,
+                timePickerOpen && styles.dateSelectorButtonActive,
+              ]}
+            >
+              <View style={styles.dateSelectorLeft}>
+                <Ionicons
+                  name="time-outline"
+                  size={18}
+                  color={formattedSelectedTime ? colors.primary : colors.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.dateSelectorText,
+                    formattedSelectedTime
+                      ? styles.activeTimeSelectorText
+                      : styles.mutedSelectorText,
+                  ]}
+                >
+                  {formattedSelectedTime ?? "Anytime (No specific time)"}
+                </Text>
+              </View>
+              <View style={styles.selectorRightGroup}>
+                <Text style={styles.selectorActionHint}>
+                  {timePickerOpen ? "Done" : formattedSelectedTime ? "Edit" : "Set time"}
+                </Text>
+                <Ionicons
+                  name={timePickerOpen ? "chevron-up" : "chevron-down"}
+                  size={16}
+                  color={colors.textSecondary}
+                />
+              </View>
+            </Pressable>
+
             {timePickerOpen ? (
-              <View style={styles.calendarCard}>
-                <View style={styles.presetRow}>
-                  {TIME_PRESETS.map((preset) => {
-                    const active = scheduledTime === preset.value;
-                    return (
-                      <Pressable
-                        key={preset.value}
-                        onPress={() => setScheduledTime(preset.value)}
-                        style={[
-                          styles.presetChip,
-                          active && styles.quickChipActive,
-                        ]}
-                      >
-                        <Text
+              <View style={styles.timeWheelCard}>
+                <View style={styles.digitalHeader}>
+                  <Text style={styles.digitalReadout}>
+                    {String(activeTimeParts.hour12).padStart(2, "0")}:
+                    {String(activeTimeParts.minute).padStart(2, "0")}
+                  </Text>
+                  <View style={styles.periodSegment}>
+                    {PERIODS.map((p) => {
+                      const active = activeTimeParts.period === p;
+                      return (
+                        <Pressable
+                          key={p}
+                          onPress={() =>
+                            applyExactTime(
+                              to24Hour(
+                                activeTimeParts.hour12,
+                                activeTimeParts.minute,
+                                p,
+                              ),
+                            )
+                          }
                           style={[
-                            styles.presetChipText,
-                            active && styles.quickChipTextActive,
+                            styles.periodSegmentBtn,
+                            active && styles.periodSegmentBtnActive,
                           ]}
                         >
-                          {preset.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
+                          <Text
+                            style={[
+                              styles.periodSegmentText,
+                              active && styles.periodSegmentTextActive,
+                            ]}
+                          >
+                            {p}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
                 </View>
 
-                <Text style={styles.subPickerLabel}>HOUR</Text>
-                <View style={styles.chipWrap}>
-                  {HOURS_12.map((h) => {
-                    const active = activeTimeParts.hour12 === h;
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.quickSlotsScroll}
+                >
+                  {QUICK_TIME_SLOTS.map((slot) => {
+                    const active = scheduledTime === slot.value;
                     return (
                       <Pressable
-                        key={h}
-                        onPress={() =>
-                          setScheduledTime(
-                            to24Hour(h, activeTimeParts.minute, activeTimeParts.period),
-                          )
-                        }
+                        key={slot.value}
+                        onPress={() => applyExactTime(slot.value)}
                         style={[
-                          styles.timeGridChip,
-                          active && styles.timeGridChipActive,
+                          styles.slotChip,
+                          active && styles.slotChipActive,
                         ]}
                       >
                         <Text
                           style={[
-                            styles.timeGridChipText,
-                            active && styles.timeGridChipTextActive,
+                            styles.slotChipText,
+                            active && styles.slotChipTextActive,
                           ]}
                         >
-                          {h}
+                          {slot.label}
                         </Text>
                       </Pressable>
                     );
                   })}
+                </ScrollView>
+
+                <View style={styles.wheelLabelsRow}>
+                  <Text style={styles.wheelColLabel}>HOUR</Text>
+                  <Text style={styles.wheelColLabel}>MINUTE</Text>
+                  <Text style={styles.wheelColLabel}>AM / PM</Text>
                 </View>
 
-                <Text style={styles.subPickerLabel}>MINUTE</Text>
-                <View style={styles.chipWrap}>
-                  {MINUTES_STEP.map((m) => {
-                    const active = activeTimeParts.minute === m;
-                    return (
-                      <Pressable
-                        key={m}
-                        onPress={() =>
-                          setScheduledTime(
-                            to24Hour(activeTimeParts.hour12, m, activeTimeParts.period),
-                          )
-                        }
-                        style={[
-                          styles.timeGridChip,
-                          active && styles.timeGridChipActive,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.timeGridChipText,
-                            active && styles.timeGridChipTextActive,
-                          ]}
-                        >
-                          :{String(m).padStart(2, "0")}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                <View style={styles.wheelStage}>
+                  <View pointerEvents="none" style={styles.wheelCenterBand} />
 
-                <View style={styles.periodRow}>
-                  {(["AM", "PM"] as const).map((p) => {
-                    const active = activeTimeParts.period === p;
-                    return (
-                      <Pressable
-                        key={p}
-                        onPress={() =>
-                          setScheduledTime(
-                            to24Hour(activeTimeParts.hour12, activeTimeParts.minute, p),
-                          )
-                        }
-                        style={[
-                          styles.periodBtn,
-                          active && styles.timeGridChipActive,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.periodBtnText,
-                            active && styles.timeGridChipTextActive,
-                          ]}
+                  <ScrollView
+                    ref={hourWheelRef}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={false}
+                    snapToInterval={WHEEL_ITEM_HEIGHT}
+                    decelerationRate="fast"
+                    onMomentumScrollEnd={handleHourWheelSettle}
+                    onScrollEndDrag={(e) => {
+                      if (Math.abs(e.nativeEvent.velocity?.y ?? 0) < 0.05) {
+                        handleHourWheelSettle(e);
+                      }
+                    }}
+                    contentContainerStyle={styles.wheelColumnContent}
+                    style={styles.wheelColumn}
+                  >
+                    {HOURS_12.map((h) => {
+                      const active = activeTimeParts.hour12 === h;
+                      return (
+                        <Pressable
+                          key={h}
+                          onPress={() =>
+                            applyExactTime(
+                              to24Hour(h, activeTimeParts.minute, activeTimeParts.period),
+                            )
+                          }
+                          style={styles.wheelItem}
                         >
-                          {p}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
+                          <Text
+                            style={[
+                              styles.wheelItemText,
+                              active && styles.wheelItemTextActive,
+                            ]}
+                          >
+                            {String(h).padStart(2, "0")}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+
+                  <Text style={styles.wheelColon}>:</Text>
+
+                  <ScrollView
+                    ref={minuteWheelRef}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={false}
+                    snapToInterval={WHEEL_ITEM_HEIGHT}
+                    decelerationRate="fast"
+                    onMomentumScrollEnd={handleMinuteWheelSettle}
+                    onScrollEndDrag={(e) => {
+                      if (Math.abs(e.nativeEvent.velocity?.y ?? 0) < 0.05) {
+                        handleMinuteWheelSettle(e);
+                      }
+                    }}
+                    contentContainerStyle={styles.wheelColumnContent}
+                    style={styles.wheelColumn}
+                  >
+                    {MINUTES_STEP.map((m) => {
+                      const active = activeTimeParts.minute === m;
+                      return (
+                        <Pressable
+                          key={m}
+                          onPress={() =>
+                            applyExactTime(
+                              to24Hour(activeTimeParts.hour12, m, activeTimeParts.period),
+                            )
+                          }
+                          style={styles.wheelItem}
+                        >
+                          <Text
+                            style={[
+                              styles.wheelItemText,
+                              active && styles.wheelItemTextActive,
+                            ]}
+                          >
+                            {String(m).padStart(2, "0")}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+
+                  <ScrollView
+                    ref={periodWheelRef}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={false}
+                    snapToInterval={WHEEL_ITEM_HEIGHT}
+                    decelerationRate="fast"
+                    onMomentumScrollEnd={handlePeriodWheelSettle}
+                    onScrollEndDrag={(e) => {
+                      if (Math.abs(e.nativeEvent.velocity?.y ?? 0) < 0.05) {
+                        handlePeriodWheelSettle(e);
+                      }
+                    }}
+                    contentContainerStyle={styles.wheelColumnContent}
+                    style={styles.wheelColumn}
+                  >
+                    {PERIODS.map((p) => {
+                      const active = activeTimeParts.period === p;
+                      return (
+                        <Pressable
+                          key={p}
+                          onPress={() =>
+                            applyExactTime(
+                              to24Hour(activeTimeParts.hour12, activeTimeParts.minute, p),
+                            )
+                          }
+                          style={styles.wheelItem}
+                        >
+                          <Text
+                            style={[
+                              styles.wheelItemText,
+                              active && styles.wheelItemTextActive,
+                            ]}
+                          >
+                            {p}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
                 </View>
               </View>
             ) : null}
@@ -716,6 +894,27 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: spacing.xs,
   },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: spacing.xs,
+  },
+  anytimeResetPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  anytimeResetText: {
+    ...typography.micro,
+    color: colors.textSecondary,
+  },
   input: {
     backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
@@ -753,24 +952,6 @@ const styles = StyleSheet.create({
   quickChipTextActive: {
     color: colors.primary,
   },
-  timeSelectorRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  timeSelectorFlex: {
-    flex: 1,
-  },
-  clearTimeBtn: {
-    width: 42,
-    height: 44,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   dateSelectorButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -790,9 +971,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
   },
+  selectorRightGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  selectorActionHint: {
+    ...typography.micro,
+    color: colors.textMuted,
+  },
   dateSelectorText: {
     ...typography.bodyMedium,
     color: colors.textPrimary,
+  },
+  activeTimeSelectorText: {
+    color: colors.primary,
+    fontWeight: "700",
   },
   mutedSelectorText: {
     color: colors.textSecondary,
@@ -870,72 +1064,142 @@ const styles = StyleSheet.create({
     color: colors.background,
     fontWeight: "700",
   },
-  presetRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
+  timeWheelCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    gap: spacing.sm,
   },
-  presetChip: {
-    paddingHorizontal: 10,
+  digitalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+  },
+  digitalReadout: {
+    fontSize: 26,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    fontVariant: ["tabular-nums"],
+    letterSpacing: 1,
+  },
+  periodSegment: {
+    flexDirection: "row",
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.md,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    gap: 4,
+  },
+  periodSegmentBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: radius.sm,
+  },
+  periodSegmentBtnActive: {
+    backgroundColor: colors.primary,
+  },
+  periodSegmentText: {
+    ...typography.caption,
+    fontWeight: "700",
+    color: colors.textSecondary,
+  },
+  periodSegmentTextActive: {
+    color: colors.background,
+  },
+  quickSlotsScroll: {
+    gap: 6,
+    paddingVertical: 2,
+  },
+  slotChip: {
+    paddingHorizontal: 11,
     paddingVertical: 6,
     borderRadius: radius.full,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
   },
-  presetChipText: {
+  slotChipActive: {
+    backgroundColor: colors.primaryMuted,
+    borderColor: colors.primaryBorder,
+  },
+  slotChipText: {
     ...typography.micro,
     color: colors.textSecondary,
   },
-  subPickerLabel: {
+  slotChipTextActive: {
+    color: colors.primary,
+    fontWeight: "700",
+  },
+  wheelLabelsRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingTop: 2,
+  },
+  wheelColLabel: {
+    flex: 1,
+    textAlign: "center",
     ...typography.micro,
     color: colors.textMuted,
-    marginTop: 2,
   },
-  chipWrap: {
+  wheelStage: {
+    height: WHEEL_HEIGHT,
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  timeGridChip: {
-    width: "14.6%",
-    paddingVertical: 7,
-    borderRadius: radius.sm,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
     alignItems: "center",
-  },
-  timeGridChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  timeGridChipText: {
-    ...typography.micro,
-    color: colors.textPrimary,
-  },
-  timeGridChipTextActive: {
-    color: colors.background,
-    fontWeight: "700",
-  },
-  periodRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: 2,
-  },
-  periodBtn: {
-    flex: 1,
-    paddingVertical: 8,
+    backgroundColor: colors.surface,
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    alignItems: "center",
+    overflow: "hidden",
+    position: "relative",
   },
-  periodBtnText: {
-    ...typography.caption,
+  wheelCenterBand: {
+    position: "absolute",
+    left: 8,
+    right: 8,
+    top: WHEEL_ITEM_HEIGHT,
+    height: WHEEL_ITEM_HEIGHT,
+    borderRadius: radius.md,
+    backgroundColor: colors.primaryMuted,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+  },
+  wheelColumn: {
+    flex: 1,
+    height: WHEEL_HEIGHT,
+  },
+  wheelColumnContent: {
+    paddingVertical: WHEEL_ITEM_HEIGHT,
+  },
+  wheelItem: {
+    height: WHEEL_ITEM_HEIGHT,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  wheelItemText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: colors.textMuted,
+    fontVariant: ["tabular-nums"],
+  },
+  wheelItemTextActive: {
+    fontSize: 19,
     fontWeight: "700",
-    color: colors.textPrimary,
+    color: colors.primary,
+  },
+  wheelColon: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.primary,
+    paddingHorizontal: 2,
   },
   errorText: {
     ...typography.caption,
