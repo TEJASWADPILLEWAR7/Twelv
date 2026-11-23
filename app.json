@@ -32,6 +32,12 @@
       "expo-font",
       "./plugins/withTwelvWidgets",
       "expo-sharing"
-    ]
+    ],
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/aad7a72c-28e7-4fa7-a454-31948c11036f"
+    }
   }
 }
