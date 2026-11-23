@@ -1,6 +1,7 @@
 import { NativeModules, Platform } from "react-native";
 import { Challenge, DateString, Task, WeeklySummary } from "../types";
 import { buildCategoryScore } from "./scoring";
+import { compareTasksByTimeOnDay, formatTime12h } from "./time";
 
 interface WidgetBridgeInterface {
   updateWidgetData: (payloadJson: string) => void;
@@ -9,6 +10,11 @@ interface WidgetBridgeInterface {
 
 const WidgetBridge: WidgetBridgeInterface | undefined =
   NativeModules.WidgetBridge;
+
+function formatWidgetTaskTitle(task: Task): string {
+  const timeLabel = formatTime12h(task.scheduledTime);
+  return timeLabel ? `${timeLabel} \u00B7 ${task.title}` : task.title;
+}
 
 export async function consumePendingWidgetTaskToggles(): Promise<
   Record<number, boolean>
@@ -54,7 +60,7 @@ export function syncAndroidWidgets(params: {
       JSON.stringify({
         syncedDate: todayStr,
         hasChallenge: false,
-        weekLabel: "Twelv · Setup",
+        weekLabel: "Twelv \u00B7 Setup",
         remainingCount: 0,
         completedTodayCount: 0,
         totalTodayCount: 0,
@@ -75,17 +81,16 @@ export function syncAndroidWidgets(params: {
   const todayAllTasks = tasks.filter((t) => t.scheduledDate === todayStr);
   const remainingToday = todayAllTasks
     .filter((t) => !t.completed)
-    .sort((a, b) => b.id - a.id);
+    .sort(compareTasksByTimeOnDay);
   const completedToday = todayAllTasks
     .filter((t) => t.completed)
-    .sort((a, b) => a.id - b.id);
+    .sort(compareTasksByTimeOnDay);
 
   const todayScore = buildCategoryScore(
     completedToday.length,
     todayAllTasks.length,
   );
 
-  // Uncompleted tasks on top, completed tasks moved downside
   const maxRows = 5;
   const remainingSlice = remainingToday.slice(0, maxRows);
   const completedSlice = completedToday.slice(
@@ -96,12 +101,12 @@ export function syncAndroidWidgets(params: {
   const widgetTaskItems = [
     ...remainingSlice.map((t) => ({
       id: t.id,
-      title: t.title,
+      title: formatWidgetTaskTitle(t),
       completed: false,
     })),
     ...completedSlice.map((t) => ({
       id: t.id,
-      title: t.title,
+      title: formatWidgetTaskTitle(t),
       completed: true,
     })),
   ];

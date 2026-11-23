@@ -201,19 +201,12 @@ export function computeWeeklySummaries(
         task.scheduledDate <= week.endDate,
     );
 
-    const countedTasks =
-      status === "completed"
-        ? weekTasks
-        : weekTasks.filter(
-            (task) => task.scheduledDate <= todayStr || task.completed,
-          );
-
-    const completedTasksCount = countedTasks.filter(
+    const completedTasksCount = weekTasks.filter(
       (task) => task.completed,
     ).length;
     const taskScore = buildCategoryScore(
       completedTasksCount,
-      countedTasks.length,
+      weekTasks.length,
     );
 
     const evaluationEnd =
