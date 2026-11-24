@@ -217,10 +217,10 @@ assertEqual(summaries[0].habits.percentage, 100, "week 1 habit pct");
 
 assertEqual(summaries[1].status, "current", "week 2 current");
 assertEqual(summaries[1].tasks.completed, 1, "week 2 elapsed task completed");
-assertEqual(summaries[1].tasks.total, 1, "week 2 elapsed task total");
+assertEqual(summaries[1].tasks.total, 2, "week 2 full-week task total");
 assertEqual(summaries[1].habits.completed, 1, "week 2 elapsed habit completed");
-assertEqual(summaries[1].habits.total, 2, "week 2 elapsed habit total");
-assertEqual(summaries[1].habits.percentage, 50, "week 2 elapsed habit pct");
+assertEqual(summaries[1].habits.total, 5, "week 2 full-week habit total");
+assertEqual(summaries[1].habits.percentage, 20, "week 2 full-week habit pct");
 
 assertEqual(summaries[2].status, "upcoming", "week 3 upcoming");
 assertEqual(summaries[2].tasks.total, 0, "week 3 task total");

@@ -85,37 +85,6 @@ export function HabitsScreen() {
     return map;
   }, [activeHabits, schedules, challenge, todayStr]);
 
-  const statsByHabit = useMemo(() => {
-    const map = new Map<number, HabitStats>();
-    if (!challenge) {
-      return map;
-    }
-    for (const habit of activeHabits) {
-      map.set(
-        habit.id,
-        computeHabitStats(
-          habit,
-          schedules,
-          logs,
-          challenge.startDate,
-          challenge.endDate,
-          todayStr,
-        ),
-      );
-    }
-    return map;
-  }, [activeHabits, schedules, logs, challenge, todayStr]);
-
-  const todayScore = useMemo(() => {
-    const scheduledToday = activeHabits.filter((h) =>
-      isHabitScheduledOnDate(h, schedules, todayStr),
-    );
-    const completedToday = scheduledToday.filter((h) =>
-      logsByHabit.get(h.id)?.has(todayStr),
-    );
-    return buildCategoryScore(completedToday.length, scheduledToday.length);
-  }, [activeHabits, schedules, todayStr, logsByHabit]);
-
   const currentWeekSummary = useMemo(() => {
     if (weeklySummaries.length === 0) {
       return null;
@@ -128,6 +97,39 @@ export function HabitsScreen() {
     }
     return weeklySummaries[weeklySummaries.length - 1];
   }, [weeklySummaries, activeWeekNumber, challenge, todayStr]);
+
+  const statsByHabit = useMemo(() => {
+    const map = new Map<number, HabitStats>();
+    if (!challenge) {
+      return map;
+    }
+    const weekEndStr = currentWeekSummary?.endDate ?? todayStr;
+    for (const habit of activeHabits) {
+      map.set(
+        habit.id,
+        computeHabitStats(
+          habit,
+          schedules,
+          logs,
+          challenge.startDate,
+          challenge.endDate,
+          todayStr,
+          weekEndStr,
+        ),
+      );
+    }
+    return map;
+  }, [activeHabits, schedules, logs, challenge, todayStr, currentWeekSummary]);
+
+  const todayScore = useMemo(() => {
+    const scheduledToday = activeHabits.filter((h) =>
+      isHabitScheduledOnDate(h, schedules, todayStr),
+    );
+    const completedToday = scheduledToday.filter((h) =>
+      logsByHabit.get(h.id)?.has(todayStr),
+    );
+    return buildCategoryScore(completedToday.length, scheduledToday.length);
+  }, [activeHabits, schedules, todayStr, logsByHabit]);
 
   const displayedHabits = useMemo(() => {
     if (filter === "all") {

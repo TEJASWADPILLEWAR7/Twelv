@@ -103,6 +103,7 @@ export function computeHabitStats(
   challengeStartDate: DateString,
   challengeEndDate: DateString,
   todayStr: DateString,
+  throughDate?: DateString,
 ): HabitStats {
   const logDates = new Set<DateString>();
   for (const log of logs) {
@@ -111,7 +112,9 @@ export function computeHabitStats(
     }
   }
 
-  let evaluationEnd = minDate(todayStr, challengeEndDate);
+  const targetEnd =
+    throughDate && throughDate > todayStr ? throughDate : todayStr;
+  let evaluationEnd = minDate(targetEnd, challengeEndDate);
   if (habit.endedOn !== null && habit.endedOn < evaluationEnd) {
     evaluationEnd = habit.endedOn;
   }
@@ -139,8 +142,13 @@ export function computeHabitStats(
     cursor = addDays(cursor, 1);
   }
 
+  let streakEnd = minDate(todayStr, challengeEndDate);
+  if (habit.endedOn !== null && habit.endedOn < streakEnd) {
+    streakEnd = habit.endedOn;
+  }
+
   let currentStreak = 0;
-  let backCursor = evaluationEnd;
+  let backCursor = streakEnd;
 
   while (backCursor >= challengeStartDate) {
     if (isHabitScheduledOnDate(habit, schedules, backCursor)) {
@@ -209,14 +217,11 @@ export function computeWeeklySummaries(
       weekTasks.length,
     );
 
-    const evaluationEnd =
-      status === "completed" ? week.endDate : minDate(week.endDate, todayStr);
-
     let scheduledOccurrences = 0;
     let completedOccurrences = 0;
 
     let cursor = week.startDate;
-    while (cursor <= evaluationEnd) {
+    while (cursor <= week.endDate) {
       for (const habit of habits) {
         if (habit.challengeId !== challenge.id) {
           continue;
